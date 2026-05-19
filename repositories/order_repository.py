@@ -15,7 +15,7 @@ class OrderRepository:
             self._session.query(Order)
             .options(
                 joinedload(Order.items).joinedload(OrderItem.toppings),
-                joinedload(Order.items).joinedload(OrderItem.product),
+                # ✅ XÓA dòng joinedload(Order.items).joinedload(OrderItem.product)
             )
             .filter(Order.table_id == table_id, Order.status == OrderStatus.ACTIVE)
             .first()
@@ -43,7 +43,6 @@ class OrderRepository:
         order = self._session.query(Order).filter(Order.id == order_id).first()
         if order:
             order.status = status
-            order.updated_at = datetime.utcnow()
             self._session.flush()
 
     def get_paid_orders_by_date_range(self, start: datetime, end: datetime) -> list[Order]:
