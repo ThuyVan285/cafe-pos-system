@@ -4,7 +4,6 @@ from PyQt6.QtWidgets import (
 )
 
 from ui.screens.pos_screen import PosScreen
-from ui.screens.report_screen import ReportScreen
 
 
 class MainWindow(QMainWindow):
@@ -20,6 +19,5 @@ class MainWindow(QMainWindow):
         tabs = QTabWidget()
 
         tabs.addTab(PosScreen(), "POS")
-        tabs.addTab(ReportScreen(), "Reports")
 
         self.setCentralWidget(tabs)
