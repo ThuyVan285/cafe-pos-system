@@ -1,11 +1,13 @@
 # FILE: ui/screens/pos_screen.py
+
 from PyQt6.QtWidgets import (
     QWidget, QHBoxLayout, QVBoxLayout, QLabel,
     QPushButton, QGridLayout, QMessageBox,
     QScrollArea, QButtonGroup, QRadioButton,
-    QFrame, QLineEdit, QSizePolicy, QSpacerItem
+    QFrame, QLineEdit, QSizePolicy,
+    QSplitter, QGraphicsDropShadowEffect
 )
-from PyQt6.QtCore import Qt, QSize
+from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont, QColor
 
 from database.db import get_session
@@ -17,51 +19,75 @@ from services.payment_service import PaymentService
 from controllers.order_controller import OrderController
 from controllers.product_controller import ProductController
 from controllers.payment_controller import PaymentController
-from ui.components.order_panel import OrderPanel
 from models.table import TableStatus
 
 
-# ─────────────────────────────────────────────────────────────
-# TABLE CARD — hình chữ nhật nằm ngang như KiotViet
-# ─────────────────────────────────────────────────────────────
+# =========================================================
+# TABLE CARD
+# =========================================================
 class TableCard(QWidget):
+
     def __init__(self, table, callback):
         super().__init__()
+
         self.table = table
-        self.setFixedSize(100, 75)
+
+        self.setFixedHeight(74)
+        self.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Fixed
+        )
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setContentsMargins(4, 4, 4, 4)
         layout.setSpacing(4)
 
         self.btn = QPushButton()
-        self.btn.setFixedSize(95, 52)
+        self.btn.setFixedHeight(46)
+
         self.btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn.clicked.connect(lambda: callback(table))
+
+        self.btn.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Fixed
+        )
+
+        self.btn.clicked.connect(
+            lambda: callback(table)
+        )
 
         self.lbl = QLabel(table.name)
-        self.lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.lbl.setFont(QFont("Segoe UI", 9))
-        self.lbl.setStyleSheet("color: #333; background: transparent;")
 
-        layout.addWidget(self.btn, 0, Qt.AlignmentFlag.AlignHCenter)
-        layout.addWidget(self.lbl, 0, Qt.AlignmentFlag.AlignHCenter)
+        self.lbl.setAlignment(
+            Qt.AlignmentFlag.AlignCenter
+        )
+
+        self.lbl.setFont(
+            QFont("Segoe UI", 9)
+        )
+
+        layout.addWidget(self.btn)
+        layout.addWidget(self.lbl)
 
         self.refresh()
 
     def refresh(self):
-        is_using = self.table.status == TableStatus.USING
-        is_takeaway = "Away" in self.table.name or "away" in self.table.name
 
-        if is_takeaway:
-            icon = "🛍️"
-        else:
-            icon = ""
+        is_using = (
+                self.table.status == TableStatus.USING
+        )
+
+        is_takeaway = (
+                "Away" in self.table.name or
+                "away" in self.table.name
+        )
+
+        icon = "🛍️" if is_takeaway else ""
 
         self.btn.setText(icon)
-        self.btn.setFont(QFont("Segoe UI", 16))
 
         if is_using:
+
             self.btn.setStyleSheet("""
                 QPushButton {
                     background: #1565C0;
@@ -70,10 +96,20 @@ class TableCard(QWidget):
                     color: white;
                     font-size: 18px;
                 }
-                QPushButton:hover { background: #1976D2; }
+
+                QPushButton:hover {
+                    background: #1976D2;
+                }
             """)
-            self.lbl.setStyleSheet("color: #1565C0; font-weight: bold; background: transparent;")
+
+            self.lbl.setStyleSheet("""
+                color: #1565C0;
+                font-weight: bold;
+                background: transparent;
+            """)
+
         else:
+
             self.btn.setStyleSheet("""
                 QPushButton {
                     background: white;
@@ -82,775 +118,705 @@ class TableCard(QWidget):
                     color: #666;
                     font-size: 18px;
                 }
+
                 QPushButton:hover {
                     background: #E3F2FD;
                     border: 2px solid #1565C0;
                 }
             """)
-            self.lbl.setStyleSheet("color: #333; background: transparent;")
 
-
-# ─────────────────────────────────────────────────────────────
-# ORDER ITEM ROW
-# ─────────────────────────────────────────────────────────────
-class OrderItemRow(QWidget):
-    def __init__(self, index, item, on_delete):
-        super().__init__()
-        self.setStyleSheet("background: transparent;")
-
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(0, 4, 0, 4)
-        layout.setSpacing(6)
-
-        # Số thứ tự
-        lbl_idx = QLabel(f"{index}.")
-        lbl_idx.setFixedWidth(24)
-        lbl_idx.setStyleSheet("color: #555; font-size: 13px;")
-
-        # Nút xóa
-        btn_del = QPushButton("🗑")
-        btn_del.setFixedSize(28, 28)
-        btn_del.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_del.setStyleSheet("""
-            QPushButton {
+            self.lbl.setStyleSheet("""
+                color: #333;
                 background: transparent;
-                border: none;
-                font-size: 14px;
-                color: #999;
-            }
-            QPushButton:hover { color: #E53935; }
-        """)
-        btn_del.clicked.connect(lambda: on_delete(item))
-
-        # Tên món
-        name = item.product_name
-        if item.size:
-            name += f" ({item.size})"
-        lbl_name = QLabel(name)
-        lbl_name.setStyleSheet("color: #1E2D3D; font-size: 13px; font-weight: bold;")
-        lbl_name.setWordWrap(True)
-
-        # Số lượng
-        lbl_qty = QLabel(f"x{item.quantity}")
-        lbl_qty.setFixedWidth(30)
-        lbl_qty.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        lbl_qty.setStyleSheet("color: #555; font-size: 13px;")
-
-        # Giá
-        lbl_price = QLabel(f"{item.total_price:,}₫")
-        lbl_price.setFixedWidth(75)
-        lbl_price.setAlignment(Qt.AlignmentFlag.AlignRight)
-        lbl_price.setStyleSheet("color: #1E2D3D; font-size: 13px; font-weight: bold;")
-
-        layout.addWidget(btn_del)
-        layout.addWidget(lbl_idx)
-        layout.addWidget(lbl_name, 1)
-        layout.addWidget(lbl_qty)
-        layout.addWidget(lbl_price)
-
-        # Divider
-        self.setStyleSheet("""
-            QWidget {
-                border-bottom: 1px solid #EEF2F8;
-                background: transparent;
-            }
-        """)
+            """)
 
 
-# ─────────────────────────────────────────────────────────────
-# RICH ORDER PANEL
-# ─────────────────────────────────────────────────────────────
+# =========================================================
+# ORDER PANEL
+# =========================================================
 class RichOrderPanel(QWidget):
+
     def __init__(self):
         super().__init__()
-        self.setStyleSheet("background: white;")
+
+        self.setMinimumWidth(360)
+        self.setMaximumWidth(650)
+
+        self.setStyleSheet("""
+            QWidget {
+                background: white;
+                border-left: 1px solid #DDE7F5;
+            }
+        """)
+
+        shadow = QGraphicsDropShadowEffect(self)
+
+        shadow.setBlurRadius(18)
+        shadow.setOffset(-2, 0)
+        shadow.setColor(QColor(0, 0, 0, 40))
+
+        self.setGraphicsEffect(shadow)
+
         self.order = None
         self.on_delete = None
         self.on_pay = None
+
         self._build()
 
     def _build(self):
+
         layout = QVBoxLayout(self)
+
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        # ── HEADER ────────────────────────────────────────────
+        # =================================================
+        # HEADER
+        # =================================================
+
         header = QWidget()
-        header.setFixedHeight(44)
-        header.setStyleSheet("background: #1565C0; border-radius: 0px;")
-        h_layout = QHBoxLayout(header)
-        h_layout.setContentsMargins(12, 0, 12, 0)
 
-        self.table_label = QLabel("🏠  Chưa chọn bàn")
-        self.table_label.setStyleSheet(
-            "color: white; font-size: 13px; font-weight: bold;"
-        )
+        header.setFixedHeight(42)
 
-        cart_btn = QPushButton("🛒")
-        cart_btn.setFixedSize(32, 32)
-        cart_btn.setStyleSheet("""
+        header.setStyleSheet("""
+            background: #1976D2;
+        """)
+
+        h = QHBoxLayout(header)
+
+        h.setContentsMargins(8, 0, 8, 0)
+        h.setSpacing(6)
+
+        self.table_label = QPushButton("")
+
+        self.table_label.setFixedHeight(30)
+
+        self.table_label.setStyleSheet("""
             QPushButton {
                 background: rgba(255,255,255,0.2);
-                border: none; border-radius: 16px;
-                color: white; font-size: 16px;
+                color: white;
+                border: none;
+                border-radius: 6px;
+                font-size: 12px;
+                font-weight: bold;
+                padding: 0 10px;
             }
-            QPushButton:hover { background: rgba(255,255,255,0.35); }
         """)
 
-        h_layout.addWidget(self.table_label, 1)
-        h_layout.addWidget(cart_btn)
+        search = QLineEdit()
+
+        search.setPlaceholderText(
+            "🔍  Tìm khách hàng (F4)"
+        )
+
+        search.setFixedHeight(30)
+
+        search.setStyleSheet("""
+            QLineEdit {
+                background: rgba(255,255,255,0.15);
+                border: 1px solid rgba(255,255,255,0.3);
+                border-radius: 15px;
+                padding: 0 12px;
+                color: white;
+            }
+        """)
+
+        h.addWidget(self.table_label)
+        h.addWidget(search)
+
         layout.addWidget(header)
 
-        # ── COLUMN HEADER ─────────────────────────────────────
-        col_hdr = QWidget()
-        col_hdr.setFixedHeight(28)
-        col_hdr.setStyleSheet(
-            "background: #F5F8FF; border-bottom: 1px solid #E0E8F5;"
-        )
-        ch = QHBoxLayout(col_hdr)
-        ch.setContentsMargins(12, 0, 12, 0)
-        ch.setSpacing(0)
-        for text, stretch, align in [
-            ("Món", 1, Qt.AlignmentFlag.AlignLeft),
-            ("SL", 0, Qt.AlignmentFlag.AlignCenter),
-            ("Đơn giá", 0, Qt.AlignmentFlag.AlignRight),
-            ("T.Tiền", 0, Qt.AlignmentFlag.AlignRight),
-        ]:
-            lbl = QLabel(text)
-            lbl.setStyleSheet("color: #999; font-size: 11px;")
-            lbl.setAlignment(align)
-            if not stretch:
-                lbl.setFixedWidth(65)
-            ch.addWidget(lbl, stretch)
-        layout.addWidget(col_hdr)
+        # =================================================
+        # SCROLL
+        # =================================================
 
-        # ── ITEMS LIST ────────────────────────────────────────
         self.scroll = QScrollArea()
+
         self.scroll.setWidgetResizable(True)
+
         self.scroll.setStyleSheet("""
-            QScrollArea { border: none; background: white; }
-            QScrollBar:vertical {
-                background: #F0F4FA; width: 5px; border-radius: 2px;
-            }
-            QScrollBar::handle:vertical {
-                background: #B0C8E8; border-radius: 2px;
+            QScrollArea {
+                border: none;
+                background: white;
             }
         """)
+
         self.items_widget = QWidget()
-        self.items_widget.setStyleSheet("background: white;")
-        self.items_layout = QVBoxLayout(self.items_widget)
-        self.items_layout.setContentsMargins(0, 0, 0, 0)
-        self.items_layout.setSpacing(0)
+
+        self.items_layout = QVBoxLayout(
+            self.items_widget
+        )
+
+        self.items_layout.setContentsMargins(
+            0, 0, 0, 0
+        )
+
         self.items_layout.addStretch()
-        self.scroll.setWidget(self.items_widget)
+
+        self.scroll.setWidget(
+            self.items_widget
+        )
+
         layout.addWidget(self.scroll, 1)
 
-        # ── TOTAL BAR ─────────────────────────────────────────
+        # =================================================
+        # TOTAL BAR
+        # =================================================
+
         total_bar = QWidget()
-        total_bar.setFixedHeight(44)
-        total_bar.setStyleSheet(
-            "background: #F5F8FF; border-top: 1.5px solid #DDEAF8;"
-        )
+
+        total_bar.setFixedHeight(50)
+
+        total_bar.setStyleSheet("""
+            background: white;
+            border-top: 1px solid #E5EDF7;
+        """)
+
         tb = QHBoxLayout(total_bar)
+
         tb.setContentsMargins(14, 0, 14, 0)
 
-        gift = QLabel("🎁")
-        gift.setStyleSheet("font-size: 16px;")
+        lbl = QLabel("Tổng tiền")
 
-        lbl_tong = QLabel("Tổng tiền")
-        lbl_tong.setStyleSheet(
-            "color: #555; font-size: 13px; font-weight: bold;"
-        )
-
-        self.lbl_count = QLabel("0")
-        self.lbl_count.setFixedSize(22, 22)
-        self.lbl_count.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.lbl_count.setStyleSheet("""
-            background: #1565C0; color: white;
-            border-radius: 11px; font-size: 11px; font-weight: bold;
+        lbl.setStyleSheet("""
+            font-size: 13px;
+            font-weight: bold;
+            color: #444;
         """)
 
         self.lbl_total = QLabel("0₫")
-        self.lbl_total.setStyleSheet(
-            "color: #1565C0; font-size: 17px; font-weight: bold;"
-        )
-        self.lbl_total.setAlignment(Qt.AlignmentFlag.AlignRight)
 
-        tb.addWidget(gift)
-        tb.addSpacing(4)
-        tb.addWidget(lbl_tong)
-        tb.addSpacing(6)
-        tb.addWidget(self.lbl_count)
+        self.lbl_total.setStyleSheet("""
+            color: #1565C0;
+            font-size: 18px;
+            font-weight: bold;
+        """)
+
+        tb.addWidget(lbl)
         tb.addStretch()
         tb.addWidget(self.lbl_total)
+
         layout.addWidget(total_bar)
 
-        # ── BOTTOM BUTTONS ────────────────────────────────────
+        # =================================================
+        # BUTTONS
+        # =================================================
+
         btn_bar = QWidget()
-        btn_bar.setFixedHeight(52)
-        btn_bar.setStyleSheet(
-            "background: white; border-top: 1px solid #E8EEF8;"
-        )
+
+        btn_bar.setFixedHeight(60)
+
         bb = QHBoxLayout(btn_bar)
+
         bb.setContentsMargins(10, 8, 10, 8)
-        bb.setSpacing(8)
 
-        self.btn_print = QPushButton("🖨  In tạm tính")
-        self.btn_print.setFixedHeight(36)
-        self.btn_print.setStyleSheet("""
-            QPushButton {
-                background: #607D8B; color: white;
-                border: none; border-radius: 8px;
-                font-size: 12px; font-weight: bold;
-            }
-            QPushButton:hover { background: #546E7A; }
-        """)
+        self.btn_print = QPushButton(
+            "🖨  In tạm tính"
+        )
 
-        self.btn_pay = QPushButton("💳  Thanh toán")
-        self.btn_pay.setFixedHeight(36)
-        self.btn_pay.setStyleSheet("""
-            QPushButton {
-                background: #2E7D32; color: white;
-                border: none; border-radius: 8px;
-                font-size: 12px; font-weight: bold;
-            }
-            QPushButton:hover { background: #388E3C; }
-        """)
+        self.btn_pay = QPushButton(
+            "💲  Thanh toán (F9)"
+        )
 
-        self.btn_notify = QPushButton("🔔  Thông báo")
-        self.btn_notify.setFixedHeight(36)
-        self.btn_notify.setStyleSheet("""
-            QPushButton {
-                background: #1565C0; color: white;
-                border: none; border-radius: 8px;
-                font-size: 12px; font-weight: bold;
-            }
-            QPushButton:hover { background: #1976D2; }
-        """)
+        self.btn_notify = QPushButton(
+            "🔔  Thông báo"
+        )
 
-        bb.addWidget(self.btn_print, 1)
-        bb.addWidget(self.btn_pay, 1)
-        bb.addWidget(self.btn_notify, 1)
+        buttons = [
+            self.btn_print,
+            self.btn_pay,
+            self.btn_notify
+        ]
+
+        for btn in buttons:
+
+            btn.setFixedHeight(38)
+
+            btn.setStyleSheet("""
+                QPushButton {
+                    background: #1565C0;
+                    color: white;
+                    border: none;
+                    border-radius: 8px;
+                    font-weight: bold;
+                }
+
+                QPushButton:hover {
+                    background: #1976D2;
+                }
+            """)
+
+            bb.addWidget(btn)
+
         layout.addWidget(btn_bar)
 
-    # ── LOAD ORDER ────────────────────────────────────────────
+    # =====================================================
+    # LOAD ORDER
+    # =====================================================
+
     def load_order(self, order, table_name=""):
+
         self.order = order
 
-        if table_name:
-            self.table_label.setText(f"🏠  {table_name}")
+        self.table_label.setText(
+            f"🏠  {table_name}"
+        )
 
-        # Xóa items cũ
         while self.items_layout.count() > 1:
+
             item = self.items_layout.takeAt(0)
+
             if item.widget():
                 item.widget().deleteLater()
 
         if not order or not order.items:
+
             self.lbl_total.setText("0₫")
-            self.lbl_count.setText("0")
             return
 
         for idx, item in enumerate(order.items, 1):
-            row = self._make_item_row(idx, item)
-            self.items_layout.insertWidget(
-                self.items_layout.count() - 1, row
+
+            row = QLabel(
+                f"{idx}. {item.product_name}  x{item.quantity}"
             )
 
-        total_qty = sum(i.quantity for i in order.items)
-        self.lbl_count.setText(str(total_qty))
-        self.lbl_total.setText(f"{order.subtotal:,}₫")
+            row.setStyleSheet("""
+                padding: 10px 14px;
+                border-bottom: 1px solid #EEF2F8;
+                font-size: 13px;
+            """)
 
-    def _make_item_row(self, index, item) -> QWidget:
-        wrapper = QWidget()
-        wrapper.setStyleSheet("""
-            QWidget {
-                background: white;
-                border-bottom: 1px solid #EEF2FA;
-            }
-        """)
-        v = QVBoxLayout(wrapper)
-        v.setContentsMargins(12, 8, 12, 4)
-        v.setSpacing(4)
+            self.items_layout.insertWidget(
+                self.items_layout.count() - 1,
+                row
+            )
 
-        # ── Row chính ─────────────────────────────────────────
-        row = QHBoxLayout()
-        row.setSpacing(6)
-
-        # Nút xóa
-        btn_del = QPushButton("🗑")
-        btn_del.setFixedSize(26, 26)
-        btn_del.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_del.setStyleSheet("""
-            QPushButton {
-                background: transparent; border: none;
-                color: #BDBDBD; font-size: 14px;
-            }
-            QPushButton:hover { color: #E53935; }
-        """)
-        btn_del.clicked.connect(
-            lambda: self.on_delete(item) if self.on_delete else None
+        self.lbl_total.setText(
+            f"{order.subtotal:,}₫"
         )
 
-        # Số thứ tự
-        lbl_idx = QLabel(f"{index}.")
-        lbl_idx.setFixedWidth(20)
-        lbl_idx.setStyleSheet("color: #888; font-size: 13px;")
 
-        # Tên món
-        name = item.product_name
-        if item.size:
-            name += f" ({item.size})"
-        lbl_name = QLabel(name)
-        lbl_name.setStyleSheet(
-            "color: #1E2D3D; font-size: 13px; font-weight: bold;"
-        )
-        lbl_name.setWordWrap(True)
-
-        # Số lượng
-        lbl_qty = QLabel(str(item.quantity))
-        lbl_qty.setFixedWidth(24)
-        lbl_qty.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        lbl_qty.setStyleSheet("color: #555; font-size: 13px;")
-
-        # Đơn giá
-        lbl_unit = QLabel(f"{item.unit_price:,}")
-        lbl_unit.setFixedWidth(65)
-        lbl_unit.setAlignment(Qt.AlignmentFlag.AlignRight)
-        lbl_unit.setStyleSheet("color: #888; font-size: 12px;")
-
-        # Tổng
-        lbl_total = QLabel(f"{item.total_price:,}")
-        lbl_total.setFixedWidth(65)
-        lbl_total.setAlignment(Qt.AlignmentFlag.AlignRight)
-        lbl_total.setStyleSheet(
-            "color: #1E2D3D; font-size: 13px; font-weight: bold;"
-        )
-
-        row.addWidget(btn_del)
-        row.addWidget(lbl_idx)
-        row.addWidget(lbl_name, 1)
-        row.addWidget(lbl_qty)
-        row.addWidget(lbl_unit)
-        row.addWidget(lbl_total)
-        v.addLayout(row)
-
-        # ── Ghi chú ───────────────────────────────────────────
-        note_btn = QPushButton("✏  Ghi chú món")
-        note_btn.setFixedHeight(24)
-        note_btn.setStyleSheet("""
-            QPushButton {
-                background: #F0F4FA;
-                color: #90A4AE;
-                border: none;
-                border-radius: 6px;
-                font-size: 11px;
-                text-align: left;
-                padding-left: 8px;
-            }
-            QPushButton:hover {
-                background: #E3EAF5;
-                color: #607D8B;
-            }
-        """)
-        note_btn.setFixedWidth(160)
-        v.addWidget(note_btn)
-
-        return wrapper
-
-# ─────────────────────────────────────────────────────────────
+# =========================================================
 # POS SCREEN
-# ─────────────────────────────────────────────────────────────
+# =========================================================
 class PosScreen(QWidget):
 
     def __init__(self):
+
         super().__init__()
-        self.setStyleSheet("background: #EEF4FC;")
+
+        self.setStyleSheet("""
+            background: #EEF4FC;
+        """)
 
         self.session = get_session()
-        self.table_repo = TableRepository(self.session)
-        self.product_repo = ProductRepository(self.session)
-        self.order_service = OrderService(self.session)
-        self.order_controller = OrderController(self.order_service)
-        self.product_controller = ProductController(ProductService(self.session))
-        self.payment_controller = PaymentController(PaymentService(self.session))
+
+        self.table_repo = TableRepository(
+            self.session
+        )
+
+        self.product_repo = ProductRepository(
+            self.session
+        )
+
+        self.order_service = OrderService(
+            self.session
+        )
+
+        self.order_controller = OrderController(
+            self.order_service
+        )
+
+        self.product_controller = ProductController(
+            ProductService(self.session)
+        )
+
+        self.payment_controller = PaymentController(
+            PaymentService(self.session)
+        )
 
         self.current_order = None
         self.current_table = None
         self.current_user_id = 1
+
         self.table_cards = {}
+
         self.all_tables = []
+
         self.filter_mode = "all"
-        self.current_view = "table"
 
         self.build_ui()
 
-    # ─────────────────────────────────────────────────────────
+    # =====================================================
+    # BUILD UI
+    # =====================================================
+
     def build_ui(self):
+
         root = QVBoxLayout(self)
+
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
 
-        root.addWidget(self._build_topbar())
+        root.addWidget(
+            self._build_topbar()
+        )
 
-        body = QHBoxLayout()
-        body.setContentsMargins(0, 0, 0, 0)
-        body.setSpacing(0)
+        splitter = QSplitter(
+            Qt.Orientation.Horizontal
+        )
 
-        body.addWidget(self._build_left(), 1)
-        body.addWidget(self._build_right_panel())
+        splitter.setHandleWidth(2)
 
-        root.addLayout(body, 1)
+        left_panel = self._build_left()
 
-    # ── TOP BAR ───────────────────────────────────────────────
-    def _build_topbar(self) -> QWidget:
-        bar = QWidget()
-        bar.setFixedHeight(52)
-        bar.setStyleSheet("background: #1565C0;")
+        right_panel = self._build_right_panel()
 
-        layout = QHBoxLayout(bar)
-        layout.setContentsMargins(12, 0, 16, 0)
-        layout.setSpacing(4)
+        splitter.addWidget(left_panel)
+        splitter.addWidget(right_panel)
 
-        # Tabs
-        self.btn_tab_table = self._make_tab_btn("🏠  Phòng bàn", True)
-        self.btn_tab_menu  = self._make_tab_btn("📋  Thực đơn",  False)
+        # 6 / 4
+        splitter.setStretchFactor(0, 6)
+        splitter.setStretchFactor(1, 4)
+        splitter.setSizes([1200, 800])
 
-        self.btn_tab_table.clicked.connect(self._show_table_view)
-        self.btn_tab_menu.clicked.connect(self._show_menu_view)
+        left_panel.setMinimumWidth(0)
 
-        layout.addWidget(self.btn_tab_table)
-        layout.addWidget(self.btn_tab_menu)
+        right_panel.setMinimumWidth(460)
+        right_panel.setMaximumWidth(520)
 
-        # Search
-        self.search_box = QLineEdit()
-        self.search_box.setPlaceholderText("🔍  Tìm món (F3)")
-        self.search_box.setFixedSize(240, 34)
-        self.search_box.setStyleSheet("""
-            QLineEdit {
-                background: rgba(255,255,255,0.15);
-                border: 1.5px solid rgba(255,255,255,0.4);
-                border-radius: 17px;
-                padding: 0 14px;
-                font-size: 13px;
-                color: white;
-            }
-            QLineEdit:focus {
-                background: rgba(255,255,255,0.25);
-                border: 1.5px solid white;
+        splitter.setStyleSheet("""
+            QSplitter::handle {
+                background: #D6E4F5;
             }
         """)
-        self.search_box.textChanged.connect(self._on_search)
-        layout.addWidget(self.search_box)
+
+        root.addWidget(splitter, 1)
+
+    # =====================================================
+    # TOPBAR
+    # =====================================================
+
+    def _build_topbar(self):
+
+        bar = QWidget()
+
+        bar.setFixedHeight(52)
+
+        bar.setStyleSheet("""
+            background: #1565C0;
+        """)
+
+        layout = QHBoxLayout(bar)
+
+        layout.setContentsMargins(
+            12, 0, 16, 0
+        )
+
+        self.btn_tab_table = QPushButton(
+            "🏠  Phòng bàn"
+        )
+
+        self.btn_tab_table.setFixedHeight(36)
+
+        self.btn_tab_table.setStyleSheet("""
+            QPushButton {
+                background: white;
+                color: #1565C0;
+                border-radius: 8px;
+                border: none;
+                padding: 0 18px;
+                font-weight: bold;
+            }
+        """)
+
+        layout.addWidget(self.btn_tab_table)
+
+        search = QLineEdit()
+
+        search.setPlaceholderText(
+            "🔍  Tìm món (F3)"
+        )
+
+        search.setFixedSize(260, 34)
+
+        search.setStyleSheet("""
+            QLineEdit {
+                background: rgba(255,255,255,0.15);
+                border: 1px solid rgba(255,255,255,0.3);
+                border-radius: 17px;
+                padding: 0 14px;
+                color: white;
+            }
+        """)
+
+        layout.addWidget(search)
 
         layout.addStretch()
 
-        # User label
-        user_lbl = QLabel("👤  Admin")
-        user_lbl.setStyleSheet("color: white; font-size: 13px; font-weight: bold;")
-        layout.addWidget(user_lbl)
+        admin = QLabel("👤 Admin")
+
+        admin.setStyleSheet("""
+            color: white;
+            font-weight: bold;
+        """)
+
+        layout.addWidget(admin)
 
         return bar
 
-    def _make_tab_btn(self, text, active) -> QPushButton:
-        btn = QPushButton(text)
-        btn.setFixedHeight(36)
-        btn.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
-        btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        if active:
-            btn.setStyleSheet("""
-                QPushButton {
-                    background: white;
-                    color: #1565C0;
-                    border: none;
-                    border-radius: 8px;
-                    padding: 0 18px;
-                    font-weight: bold;
-                }
-            """)
-        else:
-            btn.setStyleSheet("""
-                QPushButton {
-                    background: transparent;
-                    color: rgba(255,255,255,0.8);
-                    border: none;
-                    border-radius: 8px;
-                    padding: 0 18px;
-                }
-                QPushButton:hover {
-                    background: rgba(255,255,255,0.15);
-                    color: white;
-                }
-            """)
-        return btn
+    # =====================================================
+    # LEFT
+    # =====================================================
 
-    # ── LEFT PANEL ────────────────────────────────────────────
-    def _build_left(self) -> QWidget:
+    def _build_left(self):
+
         self.left_widget = QWidget()
-        self.left_widget.setStyleSheet("background: #EEF4FC;")
 
-        layout = QVBoxLayout(self.left_widget)
-        layout.setContentsMargins(12, 10, 12, 10)
+        layout = QVBoxLayout(
+            self.left_widget
+        )
+
+        layout.setContentsMargins(
+            12, 10, 12, 10
+        )
+
         layout.setSpacing(8)
 
-        # Filter bar
+        # FILTER
         filter_bar = QHBoxLayout()
-        filter_bar.setSpacing(16)
+
         self.filter_group = QButtonGroup(self)
-        self.rb_all   = self._make_radio("Tất cả",    "all")
-        self.rb_using = self._make_radio("Sử dụng",   "using")
-        self.rb_empty = self._make_radio("Còn trống", "empty")
+
+        self.rb_all = self._make_radio(
+            "Tất cả",
+            "all"
+        )
+
+        self.rb_using = self._make_radio(
+            "Sử dụng",
+            "using"
+        )
+
+        self.rb_empty = self._make_radio(
+            "Còn trống",
+            "empty"
+        )
+
         self.rb_all.setChecked(True)
-        for rb in [self.rb_all, self.rb_using, self.rb_empty]:
+
+        radios = [
+            self.rb_all,
+            self.rb_using,
+            self.rb_empty
+        ]
+
+        for rb in radios:
+
             self.filter_group.addButton(rb)
             filter_bar.addWidget(rb)
+
         filter_bar.addStretch()
+
         layout.addLayout(filter_bar)
 
-        # Scroll grid
+        # SCROLL
         self.scroll_area = QScrollArea()
+
         self.scroll_area.setWidgetResizable(True)
+
         self.scroll_area.setStyleSheet("""
-            QScrollArea { border: none; background: transparent; }
-            QScrollBar:vertical { background: #DDE8F8; width: 7px; border-radius: 3px; }
-            QScrollBar::handle:vertical { background: #90B4D8; border-radius: 3px; }
+            QScrollArea {
+                border: none;
+                background: transparent;
+            }
         """)
 
         self.grid_container = QWidget()
-        self.grid_container.setStyleSheet("background: transparent;")
-        self.table_grid = QGridLayout(self.grid_container)
-        self.table_grid.setSpacing(8)
-        self.table_grid.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
 
-        self.scroll_area.setWidget(self.grid_container)
+        self.table_grid = QGridLayout(
+            self.grid_container
+        )
 
-        # Product grid (hidden initially)
-        self.product_container = QWidget()
-        self.product_container.setStyleSheet("background: transparent;")
-        self.product_grid = QGridLayout(self.product_container)
-        self.product_grid.setSpacing(8)
-        self.product_grid.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+        # tạo xong grid rồi mới checked
+        self.rb_all.setChecked(True)
 
-        self.scroll_product = QScrollArea()
-        self.scroll_product.setWidgetResizable(True)
-        self.scroll_product.setStyleSheet("""
-            QScrollArea { border: none; background: transparent; }
-            QScrollBar:vertical { background: #DDE8F8; width: 7px; border-radius: 3px; }
-            QScrollBar::handle:vertical { background: #90B4D8; border-radius: 3px; }
-        """)
-        self.scroll_product.setWidget(self.product_container)
-        self.scroll_product.setVisible(False)
+        self.table_grid.setSpacing(12)
+
+        self.table_grid.setAlignment(
+            Qt.AlignmentFlag.AlignTop
+        )
+
+        self.scroll_area.setWidget(
+            self.grid_container
+        )
 
         layout.addWidget(self.scroll_area, 1)
-        layout.addWidget(self.scroll_product, 1)
 
         self._load_tables()
+
         return self.left_widget
 
-    # ── RIGHT ORDER PANEL ─────────────────────────────────────
-    def _build_right_panel(self) -> QWidget:
+    # =====================================================
+    # RIGHT PANEL
+    # =====================================================
+
+    def _build_right_panel(self):
+
         self.order_panel = RichOrderPanel()
-        self.order_panel.setFixedWidth(340)
-        self.order_panel.on_pay = self._on_pay
-        self.order_panel.on_delete = self._on_delete_item
-        self.order_panel.btn_pay.clicked.connect(self._on_pay)
+
+        self.order_panel.btn_pay.clicked.connect(
+            self._on_pay
+        )
+
         return self.order_panel
 
-    # ── FILTER / RADIO ────────────────────────────────────────
-    def _make_radio(self, text, mode) -> QRadioButton:
+    # =====================================================
+    # RADIO
+    # =====================================================
+
+    def _make_radio(self, text, mode):
+
         rb = QRadioButton(text)
+
         rb.setStyleSheet("""
             QRadioButton {
                 font-size: 13px;
                 font-weight: bold;
-                color: #1E2D3D;
-                spacing: 5px;
-            }
-            QRadioButton::indicator { width: 15px; height: 15px; }
-            QRadioButton::indicator:checked {
-                background: #1565C0;
-                border-radius: 7px;
-                border: 2px solid #1565C0;
-            }
-            QRadioButton::indicator:unchecked {
-                background: white;
-                border-radius: 7px;
-                border: 2px solid #90CAF9;
             }
         """)
+
         rb.toggled.connect(
-            lambda checked, m=mode: self._on_filter(m) if checked else None
+            lambda checked, m=mode:
+            self._on_filter(m)
+            if checked else None
         )
+
         return rb
+
+    # =====================================================
+    # FILTER
+    # =====================================================
 
     def _on_filter(self, mode):
         self.filter_mode = mode
-        if hasattr(self, 'table_grid'):
+
+        if hasattr(self, "table_grid"):
             self._render_table_grid()
 
-    # ── TABLES ────────────────────────────────────────────────
+    # =====================================================
+    # TABLES
+    # =====================================================
+
     def _load_tables(self):
-        self.all_tables = self.table_repo.get_all()
+
+        self.all_tables = (
+            self.table_repo.get_all()
+        )
+
         self._render_table_grid()
 
     def _render_table_grid(self):
+
         while self.table_grid.count():
+
             item = self.table_grid.takeAt(0)
+
             if item.widget():
                 item.widget().deleteLater()
+
         self.table_cards.clear()
 
         if self.filter_mode == "using":
-            tables = [t for t in self.all_tables if t.status == TableStatus.USING]
+
+            tables = [
+                t for t in self.all_tables
+                if t.status == TableStatus.USING
+            ]
+
         elif self.filter_mode == "empty":
-            tables = [t for t in self.all_tables if t.status == TableStatus.EMPTY]
+
+            tables = [
+                t for t in self.all_tables
+                if t.status == TableStatus.EMPTY
+            ]
+
         else:
             tables = self.all_tables
 
-        using = sum(1 for t in self.all_tables if t.status == TableStatus.USING)
-        empty = len(self.all_tables) - using
-        self.rb_all.setText(f"Tất cả ({len(self.all_tables)})")
-        self.rb_using.setText(f"Sử dụng ({using})")
-        self.rb_empty.setText(f"Còn trống ({empty})")
+        COLS = 7
 
-        COLS = 8
         for idx, table in enumerate(tables):
-            card = TableCard(table, self.select_table)
+
+            card = TableCard(
+                table,
+                self.select_table
+            )
+
             self.table_cards[table.id] = card
-            self.table_grid.addWidget(card, idx // COLS, idx % COLS)
 
-    # ── PRODUCTS ──────────────────────────────────────────────
-    def _load_product_grid(self, keyword=""):
-        while self.product_grid.count():
-            item = self.product_grid.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
+            self.table_grid.addWidget(
+                card,
+                idx // COLS,
+                idx % COLS
+            )
 
-        products = self.product_repo.search(keyword) if keyword else self.product_repo.get_all_active()
+        for col in range(COLS):
+            self.table_grid.setColumnStretch(col, 1)
 
-        COLS = 5
-        for idx, product in enumerate(products):
-            btn = self._make_product_card(product)
-            self.product_grid.addWidget(btn, idx // COLS, idx % COLS)
+    # =====================================================
+    # SELECT TABLE
+    # =====================================================
 
-    def _make_product_card(self, product) -> QPushButton:
-        if product.has_size and product.sizes:
-            min_delta = min(s.price_delta for s in product.sizes)
-            price_text = f"từ {(product.base_price + min_delta):,}₫"
-        else:
-            price_text = f"{product.base_price:,}₫"
-
-        btn = QPushButton(f"{product.name}\n{price_text}")
-        btn.setFixedSize(160, 70)
-        btn.setFont(QFont("Segoe UI", 10))
-        btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn.setStyleSheet("""
-            QPushButton {
-                background: white;
-                color: #1E2D3D;
-                border: 1.5px solid #BBDEFB;
-                border-radius: 10px;
-                font-size: 11px;
-                font-weight: bold;
-                padding: 4px;
-                text-align: center;
-            }
-            QPushButton:hover {
-                background: #E3F2FD;
-                border: 2px solid #1565C0;
-                color: #1565C0;
-            }
-            QPushButton:pressed { background: #BBDEFB; }
-        """)
-        btn.clicked.connect(lambda checked, p=product: self.add_product(p))
-        return btn
-
-    # ── SWITCH VIEWS ──────────────────────────────────────────
-    def _show_table_view(self):
-        self.current_view = "table"
-        self.scroll_area.setVisible(True)
-        self.scroll_product.setVisible(False)
-
-        # Tab styles
-        self.btn_tab_table.setStyleSheet("""
-            QPushButton {
-                background: white; color: #1565C0;
-                border: none; border-radius: 8px;
-                padding: 0 18px; font-weight: bold;
-            }
-        """)
-        self.btn_tab_menu.setStyleSheet("""
-            QPushButton {
-                background: transparent; color: rgba(255,255,255,0.8);
-                border: none; border-radius: 8px; padding: 0 18px;
-            }
-            QPushButton:hover { background: rgba(255,255,255,0.15); color: white; }
-        """)
-        self._load_tables()
-
-    def _show_menu_view(self):
-        if not self.current_table:
-            QMessageBox.warning(self, "Thông báo", "Vui lòng chọn bàn trước!")
-            return
-        self.current_view = "menu"
-        self.scroll_area.setVisible(False)
-        self.scroll_product.setVisible(True)
-
-        self.btn_tab_menu.setStyleSheet("""
-            QPushButton {
-                background: white; color: #1565C0;
-                border: none; border-radius: 8px;
-                padding: 0 18px; font-weight: bold;
-            }
-        """)
-        self.btn_tab_table.setStyleSheet("""
-            QPushButton {
-                background: transparent; color: rgba(255,255,255,0.8);
-                border: none; border-radius: 8px; padding: 0 18px;
-            }
-            QPushButton:hover { background: rgba(255,255,255,0.15); color: white; }
-        """)
-        self._load_product_grid()
-
-    def _on_search(self, keyword):
-        if self.current_view == "menu":
-            self._load_product_grid(keyword.strip())
-
-    # ── ACTIONS ───────────────────────────────────────────────
     def select_table(self, table):
+
         self.current_table = table
-        self.current_order = self.order_controller.create_or_get_order(
-            table.id, self.current_user_id
+
+        self.current_order = (
+            self.order_controller
+            .create_or_get_order(
+                table.id,
+                self.current_user_id
+            )
         )
+
         self.order_panel.load_order(
-            self.current_order, table.name
+            self.current_order,
+            table.name
         )
-        self._show_menu_view()
+
         self._refresh_cards()
 
-    def add_product(self, product):
-        if not self.current_order:
-            QMessageBox.warning(self, "Thông báo", "Vui lòng chọn bàn trước!")
-            return
-        self.order_controller.add_product(self.current_order, product.id)
-        self.current_order = self.order_service.get_active_order(self.current_table.id)
-        self.order_panel.load_order(self.current_order, self.current_table.name)
-
-    def _on_delete_item(self, item):
-        try:
-            self.order_service.remove_item(item.id)
-            self.current_order = self.order_service.get_active_order(self.current_table.id)
-            self.order_panel.load_order(self.current_order, self.current_table.name)
-        except Exception as e:
-            QMessageBox.warning(self, "Lỗi", str(e))
+    # =====================================================
+    # PAYMENT
+    # =====================================================
 
     def _on_pay(self):
+
         if not self.current_order:
-            QMessageBox.warning(self, "Thông báo", "Chưa có order!")
+
+            QMessageBox.warning(
+                self,
+                "Thông báo",
+                "Chưa có order!"
+            )
+
             return
-        QMessageBox.information(self, "Thanh toán", f"Tổng: {self.current_order.subtotal:,}₫")
+
+        QMessageBox.information(
+            self,
+            "Thanh toán",
+            f"Tổng: {self.current_order.subtotal:,}₫"
+        )
+
+    # =====================================================
+    # REFRESH
+    # =====================================================
 
     def _refresh_cards(self):
-        self.all_tables = self.table_repo.get_all()
-        if hasattr(self, 'table_grid'):
-            self._render_table_grid()
+
+        self.all_tables = (
+            self.table_repo.get_all()
+        )
+
+        self._render_table_grid()
