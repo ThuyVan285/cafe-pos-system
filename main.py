@@ -1,20 +1,24 @@
+# FILE: main.py
 import sys
-
 from PyQt6.QtWidgets import QApplication
-
 from database.init_db import init_database
-
 from ui.main_window import MainWindow
+from ui.dialogs.login_dialog import LoginDialog
 
 
 def main():
-
     init_database()
-
     app = QApplication(sys.argv)
 
-    window = MainWindow()
+    # ── HIỆN LOGIN ────────────────────────────────────────────
+    login = LoginDialog()
+    if login.exec() != LoginDialog.DialogCode.Accepted:
+        sys.exit(0)  # Đóng app nếu cancel
 
+    user = login.logged_user
+
+    # ── VÀO APP THEO ROLE ─────────────────────────────────────
+    window = MainWindow(user)
     window.show()
 
     sys.exit(app.exec())

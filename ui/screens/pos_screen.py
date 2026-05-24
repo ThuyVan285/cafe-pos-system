@@ -336,8 +336,10 @@ class RichOrderPanel(QWidget):
 # =========================================================
 class PosScreen(QWidget):
 
-    def __init__(self):
+    def __init__(self, user=None):
         super().__init__()
+        self.user = user
+        self.current_user_id = user.id if user else 1
         self.setStyleSheet("background: #EEF4FC;")
 
         self.session = get_session()
@@ -418,7 +420,9 @@ class PosScreen(QWidget):
         layout.addWidget(self.search_box)
         layout.addStretch()
 
-        user_lbl = QLabel("👤  Admin")
+        name = self.user.full_name if self.user else "Admin"
+        role = self.user.role.value if self.user else ""
+        user_lbl = QLabel(f"👤  {name}")
         user_lbl.setStyleSheet("color: white; font-size: 13px; font-weight: bold;")
         layout.addWidget(user_lbl)
 
