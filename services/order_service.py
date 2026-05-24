@@ -42,7 +42,6 @@ class OrderService:
             status=OrderStatus.ACTIVE,
         )
         self.order_repo.create(order)
-        self.table_repo.update_status(table_id, TableStatus.USING)
         self.session.commit()
         return order
 
@@ -68,6 +67,7 @@ class OrderService:
         self.item_repo.create(item)
         self.session.flush()
         self._attach_toppings(item, request.toppings)
+        self.table_repo.update_status(order.table_id, TableStatus.USING)
         self.session.commit()
         self.session.refresh(item)
         return item
@@ -84,6 +84,12 @@ class OrderService:
         if not item:
             raise ValueError("Item not found")
         self.session.delete(item)
+        self.session.commit()
+        # ✅ Nếu không còn món nào → bàn về EMPTY
+        order = self.order_repo.get_by_id(order_id)
+        if order and len(order.items) == 0:
+            self.table_repo.update_status(order.table_id, TableStatus.EMPTY)
+
         self.session.commit()
 
     def move_table(self, order_id: int, target_table_id: int):
