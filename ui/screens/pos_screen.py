@@ -512,9 +512,10 @@ class PosScreen(QWidget):
         self.order_panel = RichOrderPanel()
         self.order_panel.on_delete = self._on_delete_item
         self.order_panel.btn_pay.clicked.connect(self._on_pay)
+        self.order_panel.btn_notify.clicked.connect(self._on_notify)
         return self.order_panel
 
-        self.order_panel.btn_notify.clicked.connect(self._on_notify)
+
     # ── RADIO ─────────────────────────────────────────────────
     def _make_radio(self, text, mode) -> QRadioButton:
         rb = QRadioButton(text)
@@ -698,11 +699,24 @@ class PosScreen(QWidget):
             QMessageBox.warning(self, "Lỗi", str(e))
 
     def _on_pay(self):
-        if not self.current_order:
-            QMessageBox.warning(self, "Thông báo", "Chưa có order!")
+        if not self.current_order or not self.current_order.items:
+            QMessageBox.warning(self, "Thông báo", "Chưa có món nào!")
             return
-        QMessageBox.information(self, "Thanh toán", f"Tổng: {self.current_order.subtotal:,}₫")
 
+        from ui.dialogs.payment_dialog import PaymentDialog
+        dialog = PaymentDialog(
+            self.current_order,
+            self.current_table,
+            self.session,
+            self
+        )
+        if dialog.exec():
+            # Reset sau thanh toán
+            self.current_order = None
+            self.current_table = None
+            self.order_panel.load_order(None, "")
+            self._show_table_view()
+            self._refresh_cards()
     def _refresh_cards(self):
         self.all_tables = self.table_repo.get_all()
         if hasattr(self, 'table_grid'):
