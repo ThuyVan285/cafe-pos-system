@@ -376,3 +376,46 @@ class PaymentDialog(QDialog):
         except Exception as e:
             from PyQt6.QtWidgets import QMessageBox
             QMessageBox.critical(self, "Lỗi", str(e))
+
+    # Trong _on_confirm, sau khi thanh toán thành công:
+    def _on_confirm(self):
+        from models.payment import PaymentMethod
+        from services.payment_service import PaymentService
+
+        try:
+            method_map = {
+                "CASH": PaymentMethod.CASH,
+                "TRANSFER": PaymentMethod.BANKING,
+                "CARD": PaymentMethod.CARD,
+            }
+            service = PaymentService(self.session)
+            payment = service.process_payment(
+                self.order.id,
+                method_map[self.selected_method],
+                apply_discount=self.apply_discount,
+            )
+
+            # Lưu số tiền khách đưa
+            try:
+                cash_text = self.inp_cash.text().replace(",", "").replace(".", "")
+                payment.amount_received = int(cash_text) if cash_text else self.final_amount
+                payment.change_amount = payment.amount_received - payment.total_amount
+                self.session.commit()
+            except:
+                pass
+
+            # Hiện hóa đơn chính thức
+            from ui.dialogs.invoice_dialog import InvoiceDialog
+            invoice = InvoiceDialog(
+                self.order,
+                self.table,
+                mode="final",
+                payment=payment,
+                parent=self.parent()
+            )
+            self.accept()
+            invoice.exec()
+
+        except Exception as e:
+            from PyQt6.QtWidgets import QMessageBox
+            QMessageBox.critical(self, "Lỗi", str(e))

@@ -674,6 +674,7 @@ class PosScreen(QWidget):
         self.order_panel.btn_notify.clicked.connect(self._on_notify)
         self.order_panel.btn_transfer.clicked.connect(self._on_transfer_table)  # thêm
         self.order_panel.btn_merge.clicked.connect(self._on_merge_table)
+        self.order_panel.btn_print.clicked.connect(self._on_print_temp)
         return self.order_panel
 
 
@@ -1184,3 +1185,15 @@ class PosScreen(QWidget):
                     str(e)
                 )
 
+    def _on_print_temp(self):
+        if not self.current_order or not self.current_order.items:
+            QMessageBox.warning(self, "Thông báo", "Chưa có món nào!")
+            return
+        from ui.dialogs.invoice_dialog import InvoiceDialog
+        dialog = InvoiceDialog(
+            self.current_order,
+            self.current_table,
+            mode="temp",
+            parent=self
+        )
+        dialog.exec()

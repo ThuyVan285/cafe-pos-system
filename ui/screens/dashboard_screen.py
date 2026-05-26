@@ -1081,3 +1081,19 @@ class DashboardScreen(QWidget):
         if reply == QMessageBox.StandardButton.Yes:
             from main import restart_to_login
             restart_to_login(self)
+
+    def _on_add_product(self):
+        from ui.dialogs.product_edit_dialog import ProductEditDialog
+        dialog = ProductEditDialog(session=self.session, parent=self)
+        if dialog.exec():
+            self._load_products()
+
+    def _on_edit_product(self, product):
+        from ui.dialogs.product_edit_dialog import ProductEditDialog
+        dialog = ProductEditDialog(
+            session=self.session,
+            product=product,
+            parent=self
+        )
+        if dialog.exec():
+            self._load_products()
