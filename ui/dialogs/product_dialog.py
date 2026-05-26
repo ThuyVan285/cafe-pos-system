@@ -66,9 +66,9 @@ class ProductDialog(QDialog):
             body_layout.addWidget(self._build_size_section())
 
         # TOPPING
-        if hasattr(self.product, 'toppings') and self.product.toppings:
-            body_layout.addWidget(self._build_topping_section())
 
+        if hasattr(self.product, 'available_toppings') and self.product.available_toppings:
+            body_layout.addWidget(self._build_topping_section())
         layout.addWidget(body, 1)
 
         # ── FOOTER ────────────────────────────────────────────
@@ -126,10 +126,7 @@ class ProductDialog(QDialog):
     def _build_size_section(self) -> QWidget:
         section = QWidget()
         section.setStyleSheet("""
-            QWidget {
-                background: white;
-                border-radius: 12px;
-            }
+            QWidget { background: white; border-radius: 12px; }
         """)
         layout = QVBoxLayout(section)
         layout.setContentsMargins(14, 12, 14, 12)
@@ -146,7 +143,15 @@ class ProductDialog(QDialog):
         self.size_btn_group = QButtonGroup(self)
         self.size_btn_group.setExclusive(True)
 
+        # ✅ Lọc unique size tránh trùng lặp
+        seen = set()
+        unique_sizes = []
         for size in self.product.sizes:
+            if size.size not in seen:
+                seen.add(size.size)
+                unique_sizes.append(size)
+
+        for size in unique_sizes:
             price = self.product.base_price + size.price_delta
             btn = QPushButton(f"{size.size}\n{price:,}₫")
             btn.setFixedSize(100, 56)
@@ -155,7 +160,7 @@ class ProductDialog(QDialog):
             btn.setStyleSheet(self._size_style(False))
             btn.toggled.connect(
                 lambda checked, s=size, b=btn:
-                    self._on_size_toggled(s, b, checked)
+                self._on_size_toggled(s, b, checked)
             )
             self.size_btn_group.addButton(btn)
             btn_row.addWidget(btn)
@@ -163,13 +168,6 @@ class ProductDialog(QDialog):
         btn_row.addStretch()
         layout.addLayout(btn_row)
         return section
-
-    def _on_size_toggled(self, size, btn, checked):
-        if checked:
-            self._on_size_selected(size)
-            btn.setStyleSheet(self._size_style(True))
-        else:
-            btn.setStyleSheet(self._size_style(False))
 
     def _on_size_selected(self, size):
         self.selected_size = size
@@ -205,10 +203,7 @@ class ProductDialog(QDialog):
     def _build_topping_section(self) -> QWidget:
         section = QWidget()
         section.setStyleSheet("""
-            QWidget {
-                background: white;
-                border-radius: 12px;
-            }
+            QWidget { background: white; border-radius: 12px; }
         """)
         layout = QVBoxLayout(section)
         layout.setContentsMargins(14, 12, 14, 12)
@@ -224,7 +219,10 @@ class ProductDialog(QDialog):
 
         self.topping_buttons = {}
 
-        for idx, topping in enumerate(self.product.toppings):
+        # ✅ Dùng available_toppings thay vì toppings
+        toppings = self.product.available_toppings
+
+        for idx, topping in enumerate(toppings):
             btn = QPushButton(f"{topping.name}\n+{topping.price:,}₫")
             btn.setFixedSize(120, 52)
             btn.setCheckable(True)
@@ -232,7 +230,7 @@ class ProductDialog(QDialog):
             btn.setStyleSheet(self._topping_style(False))
             btn.toggled.connect(
                 lambda checked, t=topping, b=btn:
-                    self._on_topping_toggled(t, b, checked)
+                self._on_topping_toggled(t, b, checked)
             )
             self.topping_buttons[topping.id] = btn
             grid.addWidget(btn, idx // 3, idx % 3)

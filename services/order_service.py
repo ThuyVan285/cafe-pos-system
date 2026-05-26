@@ -86,7 +86,7 @@ class OrderService:
         self.session.delete(item)
         self.session.commit()
         # ✅ Nếu không còn món nào → bàn về EMPTY
-        order = self.order_repo.get_by_id(order_id)
+        order = self.order_repo.get_by_id(item.order_id)
         if order and len(order.items) == 0:
             self.table_repo.update_status(order.table_id, TableStatus.EMPTY)
 

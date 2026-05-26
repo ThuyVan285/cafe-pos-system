@@ -243,7 +243,7 @@ class RichOrderPanel(QWidget):
         self.scroll.setWidget(self.items_widget)
         layout.addWidget(self.scroll, 1)
 
-        # ── ACTION BUTTONS (Chuyển bàn / Gộp bàn) ────────────────
+        # ACTION BUTTONS
         action_bar = QWidget()
         action_bar.setFixedHeight(48)
         action_bar.setStyleSheet("background: white; border-top: 1px solid #E8EEF8;")
@@ -261,13 +261,13 @@ class RichOrderPanel(QWidget):
             btn.setFixedHeight(36)
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
             btn.setStyleSheet(f"""
-                        QPushButton {{
-                            background: {color}; color: white;
-                            border: none; border-radius: 8px;
-                            font-size: 12px; font-weight: bold;
-                        }}
-                        QPushButton:hover {{ opacity: 0.85; }}
-                    """)
+                QPushButton {{
+                    background: {color}; color: white;
+                    border: none; border-radius: 8px;
+                    font-size: 12px; font-weight: bold;
+                }}
+                QPushButton:hover {{ opacity: 0.85; }}
+            """)
             ab.addWidget(btn, 1)
 
         layout.addWidget(action_bar)
@@ -335,7 +335,6 @@ class RichOrderPanel(QWidget):
 
         layout.addWidget(btn_bar)
 
-
     def load_order(self, order, table_name=""):
         self.order = order
         if table_name:
@@ -382,12 +381,11 @@ class PosScreen(QWidget):
 
         self.current_order = None
         self.current_table = None
-        self.current_user_id = 1
         self.table_cards = {}
         self.all_tables = []
         self.filter_mode = "all"
-        self.current_category_id = None
-        self.category_buttons = []
+        self.selected_category = None  # ✅ khởi tạo ở đây
+        self.cat_buttons = {}
 
         self.build_ui()
 
@@ -426,7 +424,7 @@ class PosScreen(QWidget):
         layout.setSpacing(4)
 
         self.btn_tab_table = self._make_tab_btn("🏠  Phòng bàn", True)
-        self.btn_tab_menu  = self._make_tab_btn("📋  Thực đơn",  False)
+        self.btn_tab_menu = self._make_tab_btn("📋  Thực đơn", False)
         self.btn_tab_table.clicked.connect(self._show_table_view)
         self.btn_tab_menu.clicked.connect(self._show_menu_view)
 
@@ -453,7 +451,6 @@ class PosScreen(QWidget):
         layout.addStretch()
 
         name = self.user.full_name if self.user else "Admin"
-        role = self.user.role.value if self.user else ""
         user_lbl = QLabel(f"👤  {name}")
         user_lbl.setStyleSheet("color: white; font-size: 13px; font-weight: bold;")
         layout.addWidget(user_lbl)
@@ -487,7 +484,6 @@ class PosScreen(QWidget):
 
     # ── LEFT ──────────────────────────────────────────────────
     def _build_left(self) -> QWidget:
-
         self.left_widget = QWidget()
         self.left_widget.setStyleSheet("background: #EEF4FC;")
 
@@ -495,176 +491,82 @@ class PosScreen(QWidget):
         layout.setContentsMargins(12, 10, 12, 10)
         layout.setSpacing(8)
 
-        # =========================================================
-        # FILTER BAR (PHÒNG BÀN)
-        # =========================================================
+        # FILTER BAR (phòng bàn)
         self.filter_widget = QWidget()
-
         filter_bar = QHBoxLayout(self.filter_widget)
-
         filter_bar.setContentsMargins(0, 0, 0, 0)
         filter_bar.setSpacing(16)
 
         self.filter_group = QButtonGroup(self)
-
         self.rb_all = self._make_radio("Tất cả", "all")
         self.rb_using = self._make_radio("Sử dụng", "using")
         self.rb_empty = self._make_radio("Còn trống", "empty")
-
         self.rb_all.setChecked(True)
 
         for rb in [self.rb_all, self.rb_using, self.rb_empty]:
             self.filter_group.addButton(rb)
             filter_bar.addWidget(rb)
-
         filter_bar.addStretch()
-
         layout.addWidget(self.filter_widget)
 
-        # =========================================================
-        # CATEGORY BAR (THỰC ĐƠN)
-        # =========================================================
+        # CATEGORY BAR (thực đơn) — ẩn ban đầu
         self.category_scroll = QScrollArea()
-
         self.category_scroll.setFixedHeight(52)
         self.category_scroll.setWidgetResizable(True)
-
         self.category_scroll.setHorizontalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAlwaysOff
         )
-
         self.category_scroll.setVerticalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAlwaysOff
         )
-
-        self.category_scroll.setStyleSheet("""
-            QScrollArea {
-                border: none;
-                background: transparent;
-            }
-        """)
-
+        self.category_scroll.setStyleSheet(
+            "QScrollArea { border: none; background: transparent; }"
+        )
         self.category_widget = QWidget()
-
-        self.category_layout = QHBoxLayout(
-            self.category_widget
-        )
-
-        self.category_layout.setContentsMargins(0, 0, 0, 0)
+        self.category_layout = QHBoxLayout(self.category_widget)
+        self.category_layout.setContentsMargins(0, 4, 0, 4)
         self.category_layout.setSpacing(8)
-
-        self.category_scroll.setWidget(
-            self.category_widget
-        )
-
+        self.category_scroll.setWidget(self.category_widget)
+        self.category_scroll.setVisible(False)
         layout.addWidget(self.category_scroll)
 
-        # mặc định ẩn
-        self.category_scroll.setVisible(False)
-
-        # =========================================================
         # TABLE SCROLL
-        # =========================================================
         self.scroll_area = QScrollArea()
-
         self.scroll_area.setWidgetResizable(True)
-
         self.scroll_area.setStyleSheet("""
-            QScrollArea {
-                border: none;
-                background: transparent;
-            }
-
-            QScrollBar:vertical {
-                background: #DDE8F8;
-                width: 7px;
-                border-radius: 3px;
-            }
-
-            QScrollBar::handle:vertical {
-                background: #90B4D8;
-                border-radius: 3px;
-            }
+            QScrollArea { border: none; background: transparent; }
+            QScrollBar:vertical { background: #DDE8F8; width: 7px; border-radius: 3px; }
+            QScrollBar::handle:vertical { background: #90B4D8; border-radius: 3px; }
         """)
-
         self.grid_container = QWidget()
-
-        self.grid_container.setStyleSheet(
-            "background: transparent;"
-        )
-
-        self.table_grid = QGridLayout(
-            self.grid_container
-        )
-
+        self.grid_container.setStyleSheet("background: transparent;")
+        self.table_grid = QGridLayout(self.grid_container)
         self.table_grid.setSpacing(10)
-
         self.table_grid.setAlignment(
-            Qt.AlignmentFlag.AlignTop |
-            Qt.AlignmentFlag.AlignLeft
+            Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft
         )
-
-        self.scroll_area.setWidget(
-            self.grid_container
-        )
-
+        self.scroll_area.setWidget(self.grid_container)
         layout.addWidget(self.scroll_area, 1)
 
-        # =========================================================
-        # PRODUCT SCROLL
-        # =========================================================
+        # PRODUCT SCROLL — ẩn ban đầu
         self.scroll_product = QScrollArea()
-
         self.scroll_product.setWidgetResizable(True)
-
         self.scroll_product.setStyleSheet("""
-            QScrollArea {
-                border: none;
-                background: transparent;
-            }
-
-            QScrollBar:vertical {
-                background: #DDE8F8;
-                width: 7px;
-                border-radius: 3px;
-            }
-
-            QScrollBar::handle:vertical {
-                background: #90B4D8;
-                border-radius: 3px;
-            }
+            QScrollArea { border: none; background: transparent; }
+            QScrollBar:vertical { background: #DDE8F8; width: 7px; border-radius: 3px; }
+            QScrollBar::handle:vertical { background: #90B4D8; border-radius: 3px; }
         """)
-
         self.product_container = QWidget()
-
-        self.product_container.setStyleSheet(
-            "background: transparent;"
-        )
-
-        self.product_grid = QGridLayout(
-            self.product_container
-        )
-
-        self.product_grid.setSpacing(8)
-
-        self.product_grid.setAlignment(
-            Qt.AlignmentFlag.AlignTop |
-            Qt.AlignmentFlag.AlignLeft
-        )
-
-        self.scroll_product.setWidget(
-            self.product_container
-        )
-
+        self.product_container.setStyleSheet("background: transparent;")
+        self.product_grid = QGridLayout(self.product_container)
+        self.product_grid.setSpacing(10)
+        self.product_grid.setAlignment(Qt.AlignmentFlag.AlignTop)
+        self.scroll_product.setWidget(self.product_container)
         self.scroll_product.setVisible(False)
-
         layout.addWidget(self.scroll_product, 1)
 
         self._load_tables()
-        self._load_categories()
-
         return self.left_widget
-
 
     # ── RIGHT ─────────────────────────────────────────────────
     def _build_right_panel(self) -> QWidget:
@@ -672,11 +574,10 @@ class PosScreen(QWidget):
         self.order_panel.on_delete = self._on_delete_item
         self.order_panel.btn_pay.clicked.connect(self._on_pay)
         self.order_panel.btn_notify.clicked.connect(self._on_notify)
-        self.order_panel.btn_transfer.clicked.connect(self._on_transfer_table)  # thêm
+        self.order_panel.btn_transfer.clicked.connect(self._on_transfer_table)
         self.order_panel.btn_merge.clicked.connect(self._on_merge_table)
         self.order_panel.btn_print.clicked.connect(self._on_print_temp)
         return self.order_panel
-
 
     # ── RADIO ─────────────────────────────────────────────────
     def _make_radio(self, text, mode) -> QRadioButton:
@@ -696,90 +597,94 @@ class PosScreen(QWidget):
         )
         return rb
 
-    # =========================================================
-    # CATEGORY BAR
-    # =========================================================
-    def _load_categories(self):
-
-        while self.category_layout.count():
-
-            item = self.category_layout.takeAt(0)
-
-            if item.widget():
-                item.widget().deleteLater()
-
-        self.category_buttons.clear()
-
-        # nút tất cả
-        btn_all = QPushButton("Tất cả")
-
-        btn_all.setFixedHeight(36)
-
-        btn_all.setStyleSheet("""
-            QPushButton {
-                background: #1565C0;
-                color: white;
-                border: none;
-                border-radius: 18px;
-                padding: 0 18px;
-                font-weight: bold;
-            }
-        """)
-
-        btn_all.clicked.connect(
-            lambda: self._filter_category(None)
-        )
-
-        self.category_layout.addWidget(btn_all)
-
-        categories = self.product_repo.get_all_categories()
-
-        for category in categories:
-            btn = QPushButton(
-                f"{category.icon} {category.name}"
-            )
-
-            btn.setFixedHeight(36)
-
-            btn.setStyleSheet("""
-                QPushButton {
-                    background: white;
-                    color: #1E2D3D;
-                    border: 1px solid #D6E4F5;
-                    border-radius: 18px;
-                    padding: 0 16px;
-                    font-size: 12px;
-                    font-weight: bold;
-                }
-
-                QPushButton:hover {
-                    background: #E3F2FD;
-                    border: 1px solid #1565C0;
-                    color: #1565C0;
-                }
-            """)
-
-            btn.clicked.connect(
-                lambda checked=False, c=category.id:
-                self._filter_category(c)
-            )
-
-            self.category_layout.addWidget(btn)
-
-        self.category_layout.addStretch()
-
-    def _filter_category(self, category_id):
-
-        self.current_category_id = category_id
-
-        self._load_product_grid(
-            self.search_box.text().strip()
-        )
-
     def _on_filter(self, mode):
         self.filter_mode = mode
         if hasattr(self, 'table_grid'):
             self._render_table_grid()
+
+    # ── CATEGORY BAR ──────────────────────────────────────────
+    def _load_categories(self):
+        # Xóa buttons cũ
+        while self.category_layout.count():
+            item = self.category_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+
+        # Reset về Tất cả
+        self.selected_category = None
+        self.cat_buttons = {}
+
+        icons = {
+            "Cà phê":         "☕",
+            "Trà sữa":        "🧋",
+            "Trà":            "🍵",
+            "Latte và Sữa":   "🥛",
+            "Nước ép":        "🍹",
+            "Sữa chua":       "🍦",
+            "Nước giải khát": "🥤",
+            "Sinh tố":        "🍓",
+            "Topping":        "✨",
+        }
+
+        # Nút Tất cả — active mặc định
+        btn_all = self._make_cat_btn("Tất cả", None, active=True)
+        self.category_layout.addWidget(btn_all)
+        self.cat_buttons[None] = btn_all
+
+        # Load từ DB
+        from models.category import Category
+        cats = self.session.query(Category).order_by(Category.name).all()
+        for cat in cats:
+            icon = icons.get(cat.name, "🍴")
+            btn = self._make_cat_btn(f"{icon} {cat.name}", cat.id, active=False)
+            self.category_layout.addWidget(btn)
+            self.cat_buttons[cat.id] = btn
+
+        self.category_layout.addStretch()
+
+    def _make_cat_btn(self, text, cat_id, active=False) -> QPushButton:
+        btn = QPushButton(text)
+        btn.setFixedHeight(36)
+        btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._set_cat_style(btn, active)
+        btn.clicked.connect(
+            lambda checked, cid=cat_id, b=btn: self._on_cat_click(cid, b)
+        )
+        return btn
+
+    def _set_cat_style(self, btn, active: bool):
+        if active:
+            btn.setStyleSheet("""
+                QPushButton {
+                    background: #1565C0; color: white;
+                    border: none; border-radius: 18px;
+                    font-size: 12px; font-weight: bold;
+                    padding: 0 16px;
+                }
+            """)
+        else:
+            btn.setStyleSheet("""
+                QPushButton {
+                    background: white; color: #555;
+                    border: 1.5px solid #D0DCF0;
+                    border-radius: 18px;
+                    font-size: 12px; padding: 0 14px;
+                }
+                QPushButton:hover {
+                    background: #EBF5FF;
+                    border: 1.5px solid #1565C0;
+                    color: #1565C0;
+                }
+            """)
+
+    def _on_cat_click(self, cat_id, clicked_btn):
+        # ✅ Cập nhật selected_category
+        self.selected_category = cat_id
+        # Cập nhật style tất cả buttons
+        for cid, btn in self.cat_buttons.items():
+            self._set_cat_style(btn, cid == cat_id)
+        # Load lại products theo category
+        self._load_product_grid()
 
     # ── TABLES ────────────────────────────────────────────────
     def _load_tables(self):
@@ -814,38 +719,44 @@ class PosScreen(QWidget):
         for col in range(COLS):
             self.table_grid.setColumnStretch(col, 1)
 
-    # ── MENU ──────────────────────────────────────────────────
+    # ── PRODUCTS ──────────────────────────────────────────────
     def _load_product_grid(self, keyword=""):
+        # Xóa grid cũ
         while self.product_grid.count():
             item = self.product_grid.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
 
+        # ✅ Filter theo keyword → category → tất cả
         if keyword:
-
             products = self.product_repo.search(keyword)
-
-            if self.current_category_id:
-                products = [
-                    p for p in products
-                    if p.category_id == self.current_category_id
-                ]
-
+        elif self.selected_category is not None:
+            products = self.product_repo.get_by_category(self.selected_category)
         else:
+            products = self.product_repo.get_all_active()
 
-            if self.current_category_id:
-
-                products = self.product_repo.get_by_category(
-                    self.current_category_id
-                )
-
-            else:
-
-                products = self.product_repo.get_all_active()
         COLS = 4
         for idx, product in enumerate(products):
             btn = self._make_product_card(product)
             self.product_grid.addWidget(btn, idx // COLS, idx % COLS)
+
+        # Stretch để fill full width
+        for col in range(COLS):
+            self.product_grid.setColumnStretch(col, 1)
+
+        # Fill ô trống hàng cuối
+        total = len(products)
+        remainder = total % COLS
+        if remainder != 0:
+            last_row = total // COLS
+            for col in range(remainder, COLS):
+                spacer = QWidget()
+                spacer.setSizePolicy(
+                    QSizePolicy.Policy.Expanding,
+                    QSizePolicy.Policy.Fixed
+                )
+                spacer.setFixedHeight(80)
+                self.product_grid.addWidget(spacer, last_row, col)
 
     def _make_product_card(self, product) -> QPushButton:
         if product.has_size and product.sizes:
@@ -855,30 +766,42 @@ class PosScreen(QWidget):
             price_text = f"{product.base_price:,}₫"
 
         btn = QPushButton(f"{product.name}\n{price_text}")
-        btn.setFixedSize(168, 76)
+        btn.setFixedHeight(80)
+        btn.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Fixed
+        )
         btn.setFont(QFont("Segoe UI", 10))
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
         btn.setStyleSheet("""
             QPushButton {
                 background: white; color: #1E2D3D;
-                border: 1.5px solid #BBDEFB; border-radius: 10px;
+                border: 1.5px solid #BBDEFB;
+                border-radius: 10px;
                 font-size: 11px; font-weight: bold;
                 padding: 4px; text-align: center;
             }
             QPushButton:hover {
-                background: #E3F2FD; border: 2px solid #1565C0; color: #1565C0;
+                background: #E3F2FD;
+                border: 2px solid #1565C0;
+                color: #1565C0;
             }
             QPushButton:pressed { background: #BBDEFB; }
         """)
-        btn.clicked.connect(lambda checked, p=product: self.add_product(p))
+        btn.clicked.connect(
+            lambda checked, p=product: self.add_product(p)
+        )
         return btn
 
     # ── SWITCH VIEW ───────────────────────────────────────────
     def _show_table_view(self):
-        self.filter_widget.setVisible(True)
-        self.category_scroll.setVisible(False)
+        # Hiện table, ẩn product
         self.scroll_area.setVisible(True)
         self.scroll_product.setVisible(False)
+        # Hiện filter bàn, ẩn category bar
+        self.filter_widget.setVisible(True)
+        self.category_scroll.setVisible(False)
+
         self.btn_tab_table.setStyleSheet("""
             QPushButton {
                 background: white; color: #1565C0;
@@ -896,13 +819,17 @@ class PosScreen(QWidget):
         self._load_tables()
 
     def _show_menu_view(self):
-        self.filter_widget.setVisible(False)
-        self.category_scroll.setVisible(True)
         if not self.current_table:
             QMessageBox.warning(self, "Thông báo", "Vui lòng chọn bàn trước!")
             return
+
+        # Ẩn table, hiện product
         self.scroll_area.setVisible(False)
         self.scroll_product.setVisible(True)
+        # Ẩn filter bàn, hiện category bar
+        self.filter_widget.setVisible(False)
+        self.category_scroll.setVisible(True)
+
         self.btn_tab_menu.setStyleSheet("""
             QPushButton {
                 background: white; color: #1565C0;
@@ -917,6 +844,9 @@ class PosScreen(QWidget):
             }
             QPushButton:hover { background: rgba(255,255,255,0.15); color: white; }
         """)
+
+        # ✅ Load categories + reset về Tất cả
+        self._load_categories()
         self._load_product_grid()
 
     def _on_search(self, keyword: str):
@@ -938,28 +868,41 @@ class PosScreen(QWidget):
             QMessageBox.warning(self, "Thông báo", "Vui lòng chọn bàn trước!")
             return
 
-        if (product.has_size and product.sizes) or (
-            hasattr(product, 'available_toppings') and product.available_toppings
-        ):
+        has_size = product.has_size and product.sizes
+        has_topping = bool(product.available_toppings)
+
+        if has_size or has_topping:
             from ui.dialogs.product_dialog import ProductDialog
             dialog = ProductDialog(product, self)
             if dialog.exec():
                 result = dialog.get_result()
                 size_name = result["size"].size if result["size"] else ""
                 self.order_controller.add_product(
-                    self.current_order, product.id, size=size_name
+                    self.current_order,
+                    product.id,
+                    size=size_name,
                 )
         else:
-            self.order_controller.add_product(self.current_order, product.id)
+            self.order_controller.add_product(
+                self.current_order, product.id
+            )
 
-        self.current_order = self.order_service.get_active_order(self.current_table.id)
-        self.order_panel.load_order(self.current_order, self.current_table.name)
+        self.current_order = self.order_service.get_active_order(
+            self.current_table.id
+        )
+        self.order_panel.load_order(
+            self.current_order, self.current_table.name
+        )
 
     def _on_delete_item(self, item):
         try:
             self.order_service.remove_item(item.id)
-            self.current_order = self.order_service.get_active_order(self.current_table.id)
-            self.order_panel.load_order(self.current_order, self.current_table.name)
+            self.current_order = self.order_service.get_active_order(
+                self.current_table.id
+            )
+            self.order_panel.load_order(
+                self.current_order, self.current_table.name
+            )
         except Exception as e:
             QMessageBox.warning(self, "Lỗi", str(e))
 
@@ -976,214 +919,19 @@ class PosScreen(QWidget):
             self
         )
         if dialog.exec():
-            # Reset sau thanh toán
             self.current_order = None
             self.current_table = None
             self.order_panel.load_order(None, "")
             self._show_table_view()
             self._refresh_cards()
-    def _refresh_cards(self):
-        self.all_tables = self.table_repo.get_all()
-        if hasattr(self, 'table_grid'):
-            self._render_table_grid()
 
     def _on_notify(self):
         if not self.current_order or not self.current_order.items:
             QMessageBox.warning(self, "Thông báo", "Chưa có món nào trong order!")
             return
-
         from ui.dialogs.notify_dialog import NotifyDialog
         dialog = NotifyDialog(self.current_order, self.current_table, self)
         dialog.exec()
-
-    def _on_merge_table(self):
-        if not self.current_order or not self.current_order.items:
-            QMessageBox.warning(
-                self,
-                "Thông báo",
-                "Chưa có món nào để gộp bàn!"
-            )
-            return
-
-        # Danh sách bàn đang sử dụng (trừ bàn hiện tại)
-        using_tables = [
-            t for t in self.table_repo.get_all()
-            if t.status == TableStatus.USING
-               and t.id != self.current_table.id
-        ]
-
-        if not using_tables:
-            QMessageBox.warning(
-                self,
-                "Thông báo",
-                "Không có bàn nào để gộp!"
-            )
-            return
-
-        from ui.dialogs.transfer_table_dialog import TransferTableDialog
-
-        dialog = TransferTableDialog(
-            using_tables,
-            self.current_table,
-            self,
-            title="Gộp bàn",
-            subtitle="Chọn bàn muốn gộp vào",
-            btn_color="#6A1B9A"
-        )
-
-        if dialog.exec():
-            target_table = dialog.selected_table
-
-            if not target_table:
-                return
-
-            try:
-                # Order của bàn đích
-                target_order = self.order_service.get_active_order(
-                    target_table.id
-                )
-
-                if not target_order:
-                    QMessageBox.warning(
-                        self,
-                        "Lỗi",
-                        "Không tìm thấy order bàn đích!"
-                    )
-                    return
-
-                # Chuyển item sang order mới
-                current_items = list(self.current_order.items)
-
-                for item in current_items:
-                    item.order_id = target_order.id
-
-                self.session.flush()
-
-                # Xóa order cũ
-                old_order = self.current_order
-
-                # Cập nhật trạng thái bàn cũ
-                self.current_table.status = TableStatus.EMPTY
-
-                # Commit trước
-                self.session.commit()
-
-                # Reload lại order bàn đích
-                self.current_order = self.order_service.get_active_order(
-                    target_table.id
-                )
-
-                self.current_table = target_table
-
-                # Xóa order cũ sau khi commit
-                try:
-                    self.session.delete(old_order)
-                    self.session.commit()
-                except:
-                    self.session.rollback()
-
-                # Refresh UI
-                self.order_panel.load_order(
-                    self.current_order,
-                    target_table.name
-                )
-
-                self._refresh_cards()
-
-                QMessageBox.information(
-                    self,
-                    "Thành công",
-                    f"Đã gộp vào {target_table.name}"
-                )
-
-            except Exception as e:
-                self.session.rollback()
-                QMessageBox.critical(
-                    self,
-                    "Lỗi",
-                    str(e)
-                )
-
-    def _on_transfer_table(self):
-        if not self.current_order or not self.current_order.items:
-            QMessageBox.warning(
-                self,
-                "Thông báo",
-                "Chưa có món nào để chuyển bàn!"
-            )
-            return
-
-        # Lấy bàn trống
-        empty_tables = [
-            t for t in self.table_repo.get_all()
-            if t.status == TableStatus.EMPTY
-        ]
-
-        if not empty_tables:
-            QMessageBox.warning(
-                self,
-                "Thông báo",
-                "Không còn bàn trống!"
-            )
-            return
-
-        from ui.dialogs.transfer_table_dialog import TransferTableDialog
-
-        dialog = TransferTableDialog(
-            empty_tables,
-            self.current_table,
-            self,
-            title=f"Chuyển từ {self.current_table.name}",
-            subtitle="Chọn bàn muốn chuyển tới",
-            btn_color="#F57C00"
-        )
-
-        if dialog.exec():
-            target_table = dialog.selected_table
-
-            if not target_table:
-                return
-
-            try:
-                # Chuyển order sang bàn mới
-                self.current_order.table_id = target_table.id
-
-                # Đổi trạng thái bàn
-                self.current_table.status = TableStatus.EMPTY
-                target_table.status = TableStatus.USING
-
-                # Commit
-                self.session.commit()
-
-                # Reload dữ liệu
-                self.current_table = target_table
-
-                self.current_order = self.order_service.get_active_order(
-                    target_table.id
-                )
-
-                # Update giao diện
-                self.order_panel.load_order(
-                    self.current_order,
-                    target_table.name
-                )
-
-                self._refresh_cards()
-
-                QMessageBox.information(
-                    self,
-                    "Thành công",
-                    f"Đã chuyển sang {target_table.name}"
-                )
-
-            except Exception as e:
-                self.session.rollback()
-
-                QMessageBox.critical(
-                    self,
-                    "Lỗi",
-                    str(e)
-                )
 
     def _on_print_temp(self):
         if not self.current_order or not self.current_order.items:
@@ -1197,3 +945,105 @@ class PosScreen(QWidget):
             parent=self
         )
         dialog.exec()
+
+    def _on_transfer_table(self):
+        if not self.current_order or not self.current_order.items:
+            QMessageBox.warning(self, "Thông báo", "Chưa có món nào để chuyển bàn!")
+            return
+
+        empty_tables = [
+            t for t in self.table_repo.get_all()
+            if t.status == TableStatus.EMPTY
+        ]
+
+        if not empty_tables:
+            QMessageBox.warning(self, "Thông báo", "Không còn bàn trống!")
+            return
+
+        from ui.dialogs.transfer_table_dialog import TransferTableDialog
+        dialog = TransferTableDialog(
+            empty_tables, self.current_table, self,
+            title=f"Chuyển từ {self.current_table.name}",
+            subtitle="Chọn bàn muốn chuyển tới",
+            btn_color="#F57C00"
+        )
+
+        if dialog.exec():
+            target_table = dialog.selected_table
+            if not target_table:
+                return
+            try:
+                self.current_order.table_id = target_table.id
+                self.current_table.status = TableStatus.EMPTY
+                target_table.status = TableStatus.USING
+                self.session.commit()
+
+                self.current_table = target_table
+                self.current_order = self.order_service.get_active_order(target_table.id)
+                self.order_panel.load_order(self.current_order, target_table.name)
+                self._refresh_cards()
+                QMessageBox.information(self, "Thành công", f"Đã chuyển sang {target_table.name}")
+            except Exception as e:
+                self.session.rollback()
+                QMessageBox.critical(self, "Lỗi", str(e))
+
+    def _on_merge_table(self):
+        if not self.current_order or not self.current_order.items:
+            QMessageBox.warning(self, "Thông báo", "Chưa có món nào để gộp bàn!")
+            return
+
+        using_tables = [
+            t for t in self.table_repo.get_all()
+            if t.status == TableStatus.USING and t.id != self.current_table.id
+        ]
+
+        if not using_tables:
+            QMessageBox.warning(self, "Thông báo", "Không có bàn nào để gộp!")
+            return
+
+        from ui.dialogs.transfer_table_dialog import TransferTableDialog
+        dialog = TransferTableDialog(
+            using_tables, self.current_table, self,
+            title="Gộp bàn",
+            subtitle="Chọn bàn muốn gộp vào",
+            btn_color="#6A1B9A"
+        )
+
+        if dialog.exec():
+            target_table = dialog.selected_table
+            if not target_table:
+                return
+            try:
+                target_order = self.order_service.get_active_order(target_table.id)
+                if not target_order:
+                    QMessageBox.warning(self, "Lỗi", "Không tìm thấy order bàn đích!")
+                    return
+
+                for item in list(self.current_order.items):
+                    item.order_id = target_order.id
+                self.session.flush()
+
+                old_order = self.current_order
+                self.current_table.status = TableStatus.EMPTY
+                self.session.commit()
+
+                self.current_order = self.order_service.get_active_order(target_table.id)
+                self.current_table = target_table
+
+                try:
+                    self.session.delete(old_order)
+                    self.session.commit()
+                except:
+                    self.session.rollback()
+
+                self.order_panel.load_order(self.current_order, target_table.name)
+                self._refresh_cards()
+                QMessageBox.information(self, "Thành công", f"Đã gộp vào {target_table.name}")
+            except Exception as e:
+                self.session.rollback()
+                QMessageBox.critical(self, "Lỗi", str(e))
+
+    def _refresh_cards(self):
+        self.all_tables = self.table_repo.get_all()
+        if hasattr(self, 'table_grid'):
+            self._render_table_grid()
