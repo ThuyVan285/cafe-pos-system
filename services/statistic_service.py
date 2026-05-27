@@ -187,3 +187,59 @@ class StatisticService:
             .all()
         )
         return [(int(r.hour), r.count) for r in results]
+
+    def get_customers_by_day(self, days: int = 7) -> list:
+        from datetime import datetime, timedelta
+        from sqlalchemy import func
+        results = (
+            self._session.query(
+                func.date(Order.created_at).label('date'),
+                func.count(Order.id).label('count')
+            )
+            .filter(
+                Order.status == OrderStatus.PAID,
+                Order.created_at >= datetime.now() - timedelta(days=days)
+            )
+            .group_by(func.date(Order.created_at))
+            .order_by(func.date(Order.created_at))
+            .all()
+        )
+        return [(str(r.date), int(r.count)) for r in results]
+
+    def get_customers_by_weekday(self) -> list:
+        from sqlalchemy import func
+        results = (
+            self._session.query(
+                func.dayofweek(Order.created_at).label('dow'),
+                func.count(Order.id).label('count')
+            )
+            .filter(Order.status == OrderStatus.PAID)
+            .group_by(func.dayofweek(Order.created_at))
+            .order_by(func.dayofweek(Order.created_at))
+            .all()
+        )
+        days_map = {1: "CN", 2: "T2", 3: "T3", 4: "T4", 5: "T5", 6: "T6", 7: "T7"}
+        return [(days_map.get(int(r.dow), str(r.dow)), int(r.count)) for r in results]
+
+    def get_revenue_by_category(self) -> list:
+        """Doanh thu theo từng danh mục — dùng cho pie chart"""
+        from models.order_item import OrderItem
+        from models.product import Product
+        from models.category import Category
+        from sqlalchemy import func
+        results = (
+            self._session.query(
+                Category.name,
+                func.sum(
+                    OrderItem.unit_price * OrderItem.quantity
+                ).label('revenue')
+            )
+            .join(Product, Product.id == OrderItem.product_id)
+            .join(Category, Category.id == Product.category_id)
+            .group_by(Category.name)
+            .order_by(func.sum(
+                OrderItem.unit_price * OrderItem.quantity
+            ).desc())
+            .all()
+        )
+        return [(r.name, int(r.revenue or 0)) for r in results]

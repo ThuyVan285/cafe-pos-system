@@ -5,13 +5,14 @@ matplotlib.use('QtAgg')
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
+import numpy as np
 
 from PyQt6.QtWidgets import (
     QWidget, QHBoxLayout, QVBoxLayout, QLabel,
     QPushButton, QStackedWidget, QScrollArea,
     QGridLayout, QFrame, QTableWidget, QTableWidgetItem,
     QHeaderView, QLineEdit, QComboBox, QMessageBox,
-    QDialog, QFormLayout, QCheckBox
+    QDialog, QFormLayout, QCheckBox, QSizePolicy
 )
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont, QColor
@@ -274,211 +275,905 @@ class DashboardScreen(QWidget):
             btn.set_active(btn == clicked_btn)
 
     # ── TAB 0: OVERVIEW ───────────────────────────────────────
-    def _build_overview(self) -> QWidget:
-        widget = QWidget()
-        widget.setStyleSheet("background: #F0F4FA;")
-        layout = QVBoxLayout(widget)
-        layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSpacing(14)
 
+
+    def _build_overview(self) -> QWidget:
         from services.statistic_service import StatisticService
         from models.order import Order, OrderStatus
-        from models.table import TableStatus
+        from models.table import CafeTable, TableStatus
+        from models.payment import Payment
+        from sqlalchemy import func
+        from datetime import datetime
+
         stat = StatisticService(self.session)
 
-        today_rev = stat.get_today_revenue()
-        prediction = stat.moving_average_prediction()
+        outer = QWidget()
+        outer.setStyleSheet("background: #F0F4FA;")
 
-        # Số hóa đơn hôm nay
-        from datetime import datetime
+        outer_layout = QVBoxLayout(outer)
+        outer_layout.setContentsMargins(0, 0, 0, 0)
+
+        # =========================================================
+        # SCROLL AREA
+        # =========================================================
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+
+        scroll.setStyleSheet("""
+            QScrollArea {
+                border: none;
+                background: #F0F4FA;
+            }
+
+            QScrollBar:vertical {
+                background: #E8EEF8;
+                width: 8px;
+                border-radius: 4px;
+            }
+
+            QScrollBar::handle:vertical {
+                background: #B0C4DE;
+                border-radius: 4px;
+            }
+        """)
+
+        widget = QWidget()
+        widget.setStyleSheet("background: #F0F4FA;")
+
+        widget.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Minimum
+        )
+
+        layout = QVBoxLayout(widget)
+        layout.setContentsMargins(20, 16, 20, 16)
+        layout.setSpacing(14)
+
+        # =========================================================
+        # DATA
+        # =========================================================
         today = datetime.now().date()
-        all_paid = self.session.query(Order).filter(
-            Order.status == OrderStatus.PAID
-        ).all()
-        today_orders = [o for o in all_paid if o.created_at.date() == today]
-        today_count = len(today_orders)
 
-        # Bàn đang dùng
-        from models.table import CafeTable
+        today_rev = stat.get_today_revenue()
+
+        today_count = self.session.query(Order).filter(
+            Order.status == OrderStatus.PAID,
+            func.date(Order.created_at) == today
+        ).count()
+
         total_tables = self.session.query(CafeTable).count()
+
         using_tables = self.session.query(CafeTable).filter(
             CafeTable.status == TableStatus.USING
         ).count()
 
-        # Đơn đang phục vụ
-        active_orders = self.session.query(Order).filter(
+        active_orders_list = self.session.query(Order).filter(
             Order.status == OrderStatus.ACTIVE
-        ).count()
+        ).all()
 
-        # ── CARD ROW ──────────────────────────────────────────────
-        card_widget = QWidget()
-        card_widget.setStyleSheet("""
-            background: white;
-            border-radius: 14px;
-        """)
-        card_layout = QGridLayout(card_widget)
-        card_layout.setContentsMargins(20, 16, 20, 16)
-        card_layout.setSpacing(0)
+        active_orders = len(active_orders_list)
 
-        def make_card(top_text, main_value, main_color, sub_text=""):
+        active_rev = sum(o.subtotal for o in active_orders_list)
+
+        all_paid = self.session.query(Order).filter(
+            Order.status == OrderStatus.PAID
+        ).all()
+
+        # =========================================================
+        # TITLE
+        # =========================================================
+        lbl_title = QLabel("Bức tranh kinh doanh")
+        lbl_title.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
+        lbl_title.setStyleSheet("color: #1E2D3D;")
+
+        layout.addWidget(lbl_title)
+
+        # =========================================================
+        # FORMAT
+        # =========================================================
+        def fmt_rev(v):
+            if v >= 1_000_000:
+                return f"{v / 1_000_000:.2f} triệu"
+
+            elif v >= 1_000:
+                return f"{int(v / 1_000):,}k"
+
+            return f"{v:,}₫"
+
+        # =========================================================
+        # TOP CARDS
+        # =========================================================
+        cards_widget = QWidget()
+        cards_widget.setStyleSheet("background: transparent;")
+
+        cards_row = QHBoxLayout(cards_widget)
+        cards_row.setContentsMargins(0, 0, 0, 0)
+        cards_row.setSpacing(12)
+
+        def make_top_card(title, value, sub, color, icon):
             w = QWidget()
-            w.setStyleSheet("border: none; background: transparent;")
+
+            w.setMinimumHeight(120)
+
+            w.setStyleSheet(f"""
+                QWidget {{
+                    background: white;
+                    border-radius: 12px;
+                    border-top: 4px solid {color};
+                }}
+            """)
+
             v = QVBoxLayout(w)
-            v.setContentsMargins(12, 8, 12, 8)
-            v.setSpacing(2)
+            v.setContentsMargins(16, 14, 16, 14)
+            v.setSpacing(4)
 
-            lbl_top = QLabel(top_text)
-            lbl_top.setStyleSheet("color: #888; font-size: 12px;")
+            top_row = QHBoxLayout()
 
-            lbl_main = QLabel(main_value)
-            lbl_main.setFont(QFont("Segoe UI", 26, QFont.Weight.Bold))
-            lbl_main.setStyleSheet(f"color: {main_color};")
+            lbl_ic = QLabel(icon)
+            lbl_ic.setStyleSheet("font-size: 20px; border: none;")
 
-            v.addWidget(lbl_top)
-            v.addWidget(lbl_main)
+            lbl_t = QLabel(title)
+            lbl_t.setStyleSheet(
+                "color: #888; font-size: 12px; border: none;"
+            )
 
-            if sub_text:
-                lbl_sub = QLabel(sub_text)
-                lbl_sub.setStyleSheet("color: #555; font-size: 13px;")
-                v.addWidget(lbl_sub)
+            top_row.addWidget(lbl_ic)
+            top_row.addWidget(lbl_t, 1)
+
+            v.addLayout(top_row)
+
+            lbl_val = QLabel(value)
+            lbl_val.setFont(QFont("Segoe UI", 20, QFont.Weight.Bold))
+            lbl_val.setStyleSheet(
+                f"color: {color}; border: none;"
+            )
+
+            v.addWidget(lbl_val)
+
+            lbl_sub = QLabel(sub)
+            lbl_sub.setStyleSheet(
+                "color: #AAB; font-size: 11px; border: none;"
+            )
+
+            v.addWidget(lbl_sub)
 
             return w
 
-        # Format doanh thu dạng "836 nghìn"
-        def fmt_rev(amount):
-            if amount >= 1_000_000:
-                return f"{amount / 1_000_000:.1f} triệu"
-            elif amount >= 1_000:
-                return f"{int(amount / 1_000)} nghìn"
-            return f"{amount}₫"
+        week_rev = stat.get_week_revenue()
 
-        card_layout.addWidget(
-            make_card(f"{today_count} hóa đơn", fmt_rev(today_rev), "#1565C0"), 0, 0
+        prev_rev = week_rev / 7 if week_rev else 0
+
+        pct = (
+            f"+{((today_rev - prev_rev) / prev_rev * 100):.0f}% so với TB tuần"
+            if prev_rev else
+            "Chưa có dữ liệu"
         )
 
-        # Separator dọc
-        sep1 = QFrame()
-        sep1.setFrameShape(QFrame.Shape.VLine)
-        sep1.setStyleSheet("color: #EEF2F8;")
-        card_layout.addWidget(sep1, 0, 1)
-
-        active_rev = sum(
-            o.subtotal for o in self.session.query(Order).filter(
-                Order.status == OrderStatus.ACTIVE
-            ).all()
-        )
-        card_layout.addWidget(
-            make_card(f"{active_orders} đơn đang phục vụ", fmt_rev(active_rev), "#2E7D32"), 0, 2
+        cards_row.addWidget(
+            make_top_card(
+                "Doanh thu hôm nay",
+                fmt_rev(today_rev),
+                pct,
+                "#1565C0",
+                "💰"
+            )
         )
 
-        # Separator ngang
-        sep2 = QFrame()
-        sep2.setFrameShape(QFrame.Shape.HLine)
-        sep2.setStyleSheet("color: #EEF2F8;")
-        card_layout.addWidget(sep2, 1, 0, 1, 3)
-
-        card_layout.addWidget(
-            make_card("Bàn đang sử dụng", f"{using_tables} / {total_tables}", "#1E2D3D"), 2, 0
-        )
-        card_layout.addWidget(sep1, 2, 1)
-        card_layout.addWidget(
-            make_card("Khách đang phục vụ", str(active_orders), "#1E2D3D"), 2, 2
+        cards_row.addWidget(
+            make_top_card(
+                "Đơn hôm nay",
+                str(today_count),
+                f"{today_count} đơn thanh toán",
+                "#2E7D32",
+                "📋"
+            )
         )
 
-        layout.addWidget(card_widget)
+        cards_row.addWidget(
+            make_top_card(
+                "Bàn đang phục vụ",
+                f"{using_tables}/{total_tables}",
+                f"{active_orders} đơn đang mở",
+                "#E65100",
+                "🪑"
+            )
+        )
 
-        # ── BIỂU ĐỒ DOANH THU ────────────────────────────────────
-        rev_widget = QWidget()
-        rev_widget.setStyleSheet("background: white; border-radius: 14px;")
-        rev_layout = QVBoxLayout(rev_widget)
+        cards_row.addWidget(
+            make_top_card(
+                "Doanh thu đang phục vụ",
+                fmt_rev(active_rev),
+                f"{active_orders} đơn",
+                "#6A1B9A",
+                "🔄"
+            )
+        )
+
+        layout.addWidget(cards_widget)
+
+        # =========================================================
+        # MAIN ROW
+        # =========================================================
+        main_row = QHBoxLayout()
+        main_row.setSpacing(12)
+
+        # =========================================================
+        # LEFT SIDE
+        # =========================================================
+        charts_widget = QWidget()
+        charts_widget.setStyleSheet("background: transparent;")
+
+        charts_col = QVBoxLayout(charts_widget)
+        charts_col.setContentsMargins(0, 0, 0, 0)
+        charts_col.setSpacing(12)
+
+        # =========================================================
+        # REVENUE CHART
+        # =========================================================
+        rev_card = QWidget()
+
+        rev_card.setStyleSheet("""
+            background: white;
+            border-radius: 12px;
+        """)
+
+        rev_layout = QVBoxLayout(rev_card)
+
         rev_layout.setContentsMargins(16, 14, 16, 14)
         rev_layout.setSpacing(8)
 
-        # Title + tab
-        title_row = QHBoxLayout()
-        lbl_rev = QLabel("Doanh thu")
-        lbl_rev.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
-        lbl_rev.setStyleSheet("color: #1E2D3D;")
-        title_row.addWidget(lbl_rev)
-        title_row.addStretch()
-        rev_layout.addLayout(title_row)
+        lbl_rev_title = QLabel("Doanh thu thuần")
+        lbl_rev_title.setFont(
+            QFont("Segoe UI", 13, QFont.Weight.Bold)
+        )
 
-        # Tab Giờ/Ngày/Thứ
-        tab_row = QHBoxLayout()
-        tab_row.setSpacing(4)
-        self.rev_mode = "hour"
+        lbl_rev_title.setStyleSheet("color: #1E2D3D;")
+
+        rev_layout.addWidget(lbl_rev_title)
+
+        lbl_week = QLabel(
+            f"{week_rev:,}₫ ({len(all_paid)} hóa đơn)"
+        )
+
+        lbl_week.setStyleSheet(
+            "color: #888; font-size: 12px;"
+        )
+
+        rev_layout.addWidget(lbl_week)
+
+        # Tabs
         self.rev_tab_btns = {}
+        self.rev_mode = "hour"
 
-        for mode, label in [("hour", "Giờ"), ("day", "Ngày"), ("weekday", "Thứ")]:
+        tab_row = QHBoxLayout()
+        tab_row.setSpacing(0)
+
+        for mode, label in [
+            ("hour", "Theo giờ"),
+            ("day", "Theo ngày"),
+            ("weekday", "Theo thứ")
+        ]:
             btn = QPushButton(label)
-            btn.setFixedHeight(32)
-            btn.setFixedWidth(70)
+
+            btn.setFixedHeight(30)
+
             btn.setCheckable(True)
-            btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            btn.clicked.connect(
-                lambda checked, m=mode: self._switch_rev_chart(m)
+
+            btn.setCursor(
+                Qt.CursorShape.PointingHandCursor
             )
+
+            btn.clicked.connect(
+                lambda checked, m=mode:
+                self._switch_rev_chart(m)
+            )
+
             self.rev_tab_btns[mode] = btn
+
             tab_row.addWidget(btn)
 
         tab_row.addStretch()
+
         rev_layout.addLayout(tab_row)
 
-        # Canvas
-        self.rev_fig = Figure(figsize=(6, 2.5), facecolor='white')
+        self.rev_fig = Figure(
+            figsize=(8, 3.0),
+            facecolor='white'
+        )
+
         self.rev_canvas = FigureCanvas(self.rev_fig)
+
+        self.rev_canvas.setMinimumHeight(260)
+
         rev_layout.addWidget(self.rev_canvas)
-        layout.addWidget(rev_widget)
 
-        # ── BIỂU ĐỒ KHÁCH HÀNG ───────────────────────────────────
-        cust_widget = QWidget()
-        cust_widget.setStyleSheet("background: white; border-radius: 14px;")
-        cust_layout = QVBoxLayout(cust_widget)
+        charts_col.addWidget(rev_card)
+
+        # =========================================================
+        # CUSTOMER CHART
+        # =========================================================
+        cust_card = QWidget()
+
+        cust_card.setStyleSheet("""
+            background: white;
+            border-radius: 12px;
+        """)
+
+        cust_layout = QVBoxLayout(cust_card)
+
         cust_layout.setContentsMargins(16, 14, 16, 14)
+        cust_layout.setSpacing(8)
 
-        lbl_cust = QLabel("Số lượng khách hàng")
-        lbl_cust.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
-        lbl_cust.setStyleSheet("color: #1E2D3D;")
-        cust_layout.addWidget(lbl_cust)
+        lbl_cust_title = QLabel("Lượng khách hàng")
 
-        self.cust_fig = Figure(figsize=(6, 2.2), facecolor='white')
+        lbl_cust_title.setFont(
+            QFont("Segoe UI", 13, QFont.Weight.Bold)
+        )
+
+        lbl_cust_title.setStyleSheet("color: #1E2D3D;")
+
+        cust_layout.addWidget(lbl_cust_title)
+
+        lbl_cust_count = QLabel(
+            f"{len(all_paid)} lượt khách"
+        )
+
+        lbl_cust_count.setStyleSheet(
+            "color: #888; font-size: 12px;"
+        )
+
+        cust_layout.addWidget(lbl_cust_count)
+
+        # Tabs
+        self.cust_tab_btns = {}
+        self.cust_mode = "hour"
+
+        cust_tab_row = QHBoxLayout()
+
+        for mode, label in [
+            ("hour", "Theo giờ"),
+            ("day", "Theo ngày"),
+            ("weekday", "Theo thứ")
+        ]:
+            btn = QPushButton(label)
+
+            btn.setFixedHeight(30)
+
+            btn.setCheckable(True)
+
+            btn.clicked.connect(
+                lambda checked, m=mode:
+                self._switch_cust_chart(m)
+            )
+
+            self.cust_tab_btns[mode] = btn
+
+            cust_tab_row.addWidget(btn)
+
+        cust_tab_row.addStretch()
+
+        cust_layout.addLayout(cust_tab_row)
+
+        self.cust_fig = Figure(
+            figsize=(8, 2.8),
+            facecolor='white'
+        )
+
         self.cust_canvas = FigureCanvas(self.cust_fig)
-        cust_layout.addWidget(self.cust_canvas)
-        layout.addWidget(cust_widget)
 
-        # Vẽ chart lần đầu
+        self.cust_canvas.setMinimumHeight(240)
+
+        cust_layout.addWidget(self.cust_canvas)
+
+        charts_col.addWidget(cust_card)
+
+        main_row.addWidget(charts_widget, 4)
+
+        # =========================================================
+        # FEED
+        # =========================================================
+        # ── ACTIVITY FEED (phải) ──────────────────────────────────────
+
+        feed_card = QWidget()
+        feed_card.setStyleSheet("""
+            background: white;
+            border-radius: 12px;
+        """)
+
+        feed_layout = QVBoxLayout(feed_card)
+        feed_layout.setContentsMargins(16, 14, 16, 14)
+        feed_layout.setSpacing(8)
+
+        # Header
+        feed_header = QHBoxLayout()
+
+        lbl_feed = QLabel("🔔 Hoạt động gần đây")
+        lbl_feed.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
+        lbl_feed.setStyleSheet("color: #1E2D3D;")
+
+        feed_header.addWidget(lbl_feed)
+        feed_header.addStretch()
+
+        feed_layout.addLayout(feed_header)
+
+        # Scroll area
+        feed_scroll = QScrollArea()
+        feed_scroll.setWidgetResizable(True)
+
+        feed_scroll.setStyleSheet("""
+            QScrollArea {
+                border: none;
+                background: transparent;
+            }
+
+            QScrollBar:vertical {
+                background: #F0F4FA;
+                width: 5px;
+                border-radius: 2px;
+            }
+
+            QScrollBar::handle:vertical {
+                background: #B0C8E8;
+                border-radius: 2px;
+            }
+        """)
+
+        feed_content = QWidget()
+        feed_content.setStyleSheet("background: transparent;")
+
+        feed_content_layout = QVBoxLayout(feed_content)
+        feed_content_layout.setContentsMargins(0, 0, 0, 0)
+        feed_content_layout.setSpacing(0)
+
+        # =========================
+        # DATA
+        # =========================
+
+        from models.order import Order, OrderStatus
+        from models.payment import Payment
+        from datetime import datetime
+
+        recent_payments = (
+            self.session.query(Order, Payment)
+            .join(Payment, Payment.order_id == Order.id)
+            .filter(Order.status == OrderStatus.PAID)
+            .order_by(Order.created_at.desc())
+            .limit(20)
+            .all()
+        )
+
+        icons = ["☕", "🧋", "🍵", "🥤", "🍓", "🧃", "🍦"]
+
+        # =========================
+        # ITEMS
+        # =========================
+
+        for idx, (order, payment) in enumerate(recent_payments):
+
+            item_w = QWidget()
+
+            item_w.setStyleSheet(f"""
+                QWidget {{
+                    background: {'#F8FAFF' if idx % 2 == 0 else 'white'};
+                    border-radius: 8px;
+                    border-bottom: 1px solid #F0F4FA;
+                }}
+            """)
+
+            item_l = QHBoxLayout(item_w)
+            item_l.setContentsMargins(8, 10, 8, 10)
+            item_l.setSpacing(10)
+
+            # ── ICON ─────────────────────────
+
+            icon_lbl = QLabel(icons[idx % len(icons)])
+
+            icon_lbl.setFixedSize(36, 36)
+
+            icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+            icon_lbl.setStyleSheet("""
+                background: #E3F2FD;
+                border-radius: 18px;
+                font-size: 16px;
+            """)
+
+            # ── CONTENT ──────────────────────
+
+            content = QVBoxLayout()
+            content.setSpacing(2)
+
+            table_name = (
+                order.table.name
+                if order.table
+                else "Không rõ"
+            )
+
+            staff_name = (
+                order.user.full_name
+                if order.user
+                else "Nhân viên"
+            )
+
+            items_count = sum(i.quantity for i in order.items)
+
+            item_names = []
+
+            for it in order.items[:2]:
+                item_names.append(it.product_name)
+
+            items_str = ", ".join(item_names)
+
+            if len(order.items) > 2:
+                items_str += f" +{len(order.items) - 2} món"
+
+            lbl_main = QLabel(
+                f"<b>Cafe POS</b> đã bán "
+                f"<b>{items_count} món</b> "
+                f"tại <b>{table_name}</b>"
+            )
+
+            lbl_main.setStyleSheet("""
+                color: #1E2D3D;
+                font-size: 12px;
+                border: none;
+            """)
+
+            lbl_main.setWordWrap(True)
+
+            lbl_sub = QLabel(
+                f"NV: {staff_name}  •  {items_str}"
+            )
+
+            lbl_sub.setStyleSheet("""
+                color: #90A4AE;
+                font-size: 10px;
+                border: none;
+            """)
+
+            lbl_sub.setWordWrap(True)
+
+            content.addWidget(lbl_main)
+            content.addWidget(lbl_sub)
+
+            # ── RIGHT ────────────────────────
+
+            right = QVBoxLayout()
+
+            right.setSpacing(2)
+
+            right.setAlignment(
+                Qt.AlignmentFlag.AlignRight
+            )
+
+            lbl_amount = QLabel(
+                f"{payment.total_amount:,}₫"
+            )
+
+            lbl_amount.setStyleSheet("""
+                color: #1565C0;
+                font-size: 13px;
+                font-weight: bold;
+                border: none;
+            """)
+
+            lbl_amount.setAlignment(
+                Qt.AlignmentFlag.AlignRight
+            )
+
+            # Time
+
+            now = datetime.now()
+
+            diff = now - order.created_at
+
+            if diff.seconds < 60:
+                time_str = "Vừa xong"
+
+            elif diff.seconds < 3600:
+                time_str = f"{diff.seconds // 60} phút trước"
+
+            elif diff.days == 0:
+                time_str = f"{diff.seconds // 3600} giờ trước"
+
+            elif diff.days == 1:
+                time_str = "Hôm qua"
+
+            else:
+                time_str = order.created_at.strftime(
+                    "%d/%m %H:%M"
+                )
+
+            lbl_time = QLabel(time_str)
+
+            lbl_time.setStyleSheet("""
+                color: #B0BEC5;
+                font-size: 10px;
+                border: none;
+            """)
+
+            lbl_time.setAlignment(
+                Qt.AlignmentFlag.AlignRight
+            )
+
+            right.addWidget(lbl_amount)
+            right.addWidget(lbl_time)
+
+            # ── ADD ──────────────────────────
+
+            item_l.addWidget(icon_lbl)
+
+            item_l.addLayout(content, 1)
+
+            item_l.addLayout(right)
+
+            feed_content_layout.addWidget(item_w)
+
+        feed_content_layout.addStretch()
+
+        feed_scroll.setWidget(feed_content)
+
+        feed_layout.addWidget(feed_scroll)
+
+        # thêm vào main row
+        main_row.addWidget(feed_card, 2)
+        layout.addLayout(main_row)
+        # =========================================================
+        # BOTTOM ROW
+        # =========================================================
+        bottom_row = QHBoxLayout()
+        bottom_row.setSpacing(12)
+
+        # =========================================================
+        # PIE CHART
+        # =========================================================
+        pie_card = QWidget()
+
+        pie_card.setStyleSheet("""
+            background: white;
+            border-radius: 12px;
+        """)
+
+        pie_layout = QVBoxLayout(pie_card)
+
+        pie_layout.setContentsMargins(16, 14, 16, 14)
+
+        lbl_pie = QLabel("Hiệu quả thực đơn")
+
+        lbl_pie.setFont(
+            QFont("Segoe UI", 13, QFont.Weight.Bold)
+        )
+
+        lbl_pie.setStyleSheet("color: #1E2D3D;")
+
+        pie_layout.addWidget(lbl_pie)
+
+        self.pie_fig = Figure(
+            figsize=(4, 3.5),
+            facecolor='white'
+        )
+
+        self.pie_canvas = FigureCanvas(self.pie_fig)
+
+        self.pie_canvas.setMinimumHeight(300)
+
+        pie_layout.addWidget(self.pie_canvas)
+
+        bottom_row.addWidget(pie_card, 2)
+
+        # =========================================================
+        # TOP PRODUCTS
+        # =========================================================
+        # Top sản phẩm
+        top_card = QWidget()
+        top_card.setStyleSheet("""
+            background: white;
+            border-radius: 12px;
+        """)
+
+        top_layout = QVBoxLayout(top_card)
+        top_layout.setContentsMargins(16, 14, 16, 14)
+        top_layout.setSpacing(6)
+
+        # Header
+        top_header = QHBoxLayout()
+
+        lbl_top_title = QLabel("Top món bán chạy")
+        lbl_top_title.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
+        lbl_top_title.setStyleSheet("color: #1E2D3D;")
+
+        top_header.addWidget(lbl_top_title)
+        top_header.addStretch()
+
+        top_layout.addLayout(top_header)
+
+        # Header cột
+        col_h = QWidget()
+        col_h.setStyleSheet("""
+            background: #F5F8FF;
+            border-radius: 6px;
+        """)
+
+        col_h_layout = QHBoxLayout(col_h)
+        col_h_layout.setContentsMargins(8, 4, 8, 4)
+
+        headers = [
+            ("#", 35),
+            ("Tên món", 0),
+            ("SL", 70),
+            ("Doanh thu", 110)
+        ]
+
+        for text, width in headers:
+            lbl = QLabel(text)
+            lbl.setStyleSheet("""
+                color: #78909C;
+                font-size: 11px;
+                font-weight: bold;
+                border: none;
+            """)
+
+            if width:
+                lbl.setFixedWidth(width)
+                lbl.setAlignment(Qt.AlignmentFlag.AlignRight)
+
+            col_h_layout.addWidget(lbl, 0 if width else 1)
+
+        top_layout.addWidget(col_h)
+
+        # Dữ liệu top sản phẩm
+        top_products = stat.get_top_products(limit=10)
+
+        rank_colors = [
+            "#1565C0",
+            "#2E7D32",
+            "#EF6C00",
+            "#6A1B9A",
+            "#C62828",
+            "#00838F",
+            "#5D4037",
+            "#455A64",
+            "#7B1FA2",
+            "#546E7A"
+        ]
+
+        for idx, (name, qty, revenue) in enumerate(top_products):
+            row_w = QWidget()
+            row_w.setFixedHeight(40)
+
+            row_w.setStyleSheet(f"""
+                QWidget {{
+                    background: {'#F8FAFF' if idx % 2 == 0 else 'white'};
+                    border-radius: 6px;
+                }}
+            """)
+
+            row_l = QHBoxLayout(row_w)
+            row_l.setContentsMargins(8, 0, 8, 0)
+            row_l.setSpacing(8)
+
+            # STT
+            lbl_rank = QLabel(str(idx + 1))
+            lbl_rank.setFixedSize(22, 22)
+            lbl_rank.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+            lbl_rank.setStyleSheet(f"""
+                background: {rank_colors[idx % len(rank_colors)]};
+                color: white;
+                border-radius: 11px;
+                font-size: 11px;
+                font-weight: bold;
+            """)
+
+            # Tên món
+            lbl_name = QLabel(name)
+            lbl_name.setStyleSheet("""
+                color: #1E2D3D;
+                font-size: 12px;
+                font-weight: 600;
+                border: none;
+            """)
+
+            # Số lượng
+            lbl_qty = QLabel(f"{qty:,}")
+            lbl_qty.setFixedWidth(70)
+            lbl_qty.setAlignment(Qt.AlignmentFlag.AlignRight)
+
+            lbl_qty.setStyleSheet("""
+                color: #455A64;
+                font-size: 12px;
+                border: none;
+            """)
+
+            # Doanh thu
+            lbl_rev = QLabel(f"{revenue:,}₫")
+            lbl_rev.setFixedWidth(110)
+            lbl_rev.setAlignment(Qt.AlignmentFlag.AlignRight)
+
+            lbl_rev.setStyleSheet("""
+                color: #1565C0;
+                font-size: 12px;
+                font-weight: bold;
+                border: none;
+            """)
+
+            row_l.addWidget(lbl_rank)
+            row_l.addWidget(lbl_name, 1)
+            row_l.addWidget(lbl_qty)
+            row_l.addWidget(lbl_rev)
+
+            top_layout.addWidget(row_w)
+
+        top_layout.addStretch()
+
+        bottom_row.addWidget(top_card, 3)
+
+
+        # =========================================================
+        # DRAW CHARTS
+        # =========================================================
         self._draw_rev_chart("hour")
-        self._draw_cust_chart()
+
+        self._draw_cust_chart("hour")
+
+        self._draw_pie_chart()
+
         self._update_rev_tab_style("hour")
 
-        return widget
+        self._update_cust_tab_style("hour")
 
+        # =========================================================
+        # FINAL
+        # =========================================================
+        scroll.setWidget(widget)
+
+        scroll.verticalScrollBar().setSingleStep(20)
+
+        outer_layout.addWidget(scroll)
+
+        return outer
+
+
+    # ── CHART METHODS ─────────────────────────────────────────────
     def _switch_rev_chart(self, mode: str):
         self.rev_mode = mode
         self._draw_rev_chart(mode)
         self._update_rev_tab_style(mode)
 
-    def _update_rev_tab_style(self, active_mode: str):
+    def _switch_cust_chart(self, mode: str):
+        self.cust_mode = mode
+        self._draw_cust_chart(mode)
+        self._update_cust_tab_style(mode)
+
+    def _tab_style(self, active: bool) -> str:
+        if active:
+            return """
+                QPushButton {
+                    background: #1565C0; color: white;
+                    border: none; border-radius: 6px;
+                    font-size: 11px; font-weight: bold;
+                    padding: 0 12px;
+                }
+            """
+        return """
+            QPushButton {
+                background: #F0F4FA; color: #555;
+                border: none; border-radius: 6px;
+                font-size: 11px; padding: 0 12px;
+            }
+            QPushButton:hover { background: #E3F2FD; color: #1565C0; }
+        """
+
+    def _update_rev_tab_style(self, active: str):
         for mode, btn in self.rev_tab_btns.items():
-            if mode == active_mode:
-                btn.setStyleSheet("""
-                    QPushButton {
-                        background: #1565C0; color: white;
-                        border: none; border-radius: 16px;
-                        font-weight: bold; font-size: 12px;
-                    }
-                """)
-                btn.setChecked(True)
-            else:
-                btn.setStyleSheet("""
-                    QPushButton {
-                        background: #F0F4FA; color: #555;
-                        border: none; border-radius: 16px;
-                        font-size: 12px;
-                    }
-                    QPushButton:hover { background: #E3F2FD; }
-                """)
-                btn.setChecked(False)
+            btn.setStyleSheet(self._tab_style(mode == active))
+
+    def _update_cust_tab_style(self, active: str):
+        for mode, btn in self.cust_tab_btns.items():
+            btn.setStyleSheet(self._tab_style(mode == active))
 
     def _draw_rev_chart(self, mode: str):
         from services.statistic_service import StatisticService
@@ -489,43 +1184,47 @@ class DashboardScreen(QWidget):
         ax.set_facecolor('white')
         self.rev_fig.patch.set_facecolor('white')
 
+        color = '#5B9BD5'
+
         if mode == "hour":
             data = stat.get_revenue_by_hour()
-            labels = [f"{h}:00" for h, _ in data]
-            values = [v for _, v in data]
-            ax.bar(range(len(labels)), [v / 1000 for v in values],
-                   color='#90CAF9', width=0.6)
-            ax.set_xticks(range(len(labels)))
-            ax.set_xticklabels(labels, fontsize=8, rotation=45)
-            ax.set_ylabel("Nghìn ₫", fontsize=9)
+            if data:
+                hours, vals = zip(*data)
+                labels = [f"{h:02d}h" for h in hours]
+                ax.bar(range(len(labels)), [v / 1000 for v in vals],
+                       color=color, width=0.6, zorder=3)
+                ax.set_xticks(range(len(labels)))
+                ax.set_xticklabels(labels, fontsize=7, rotation=45)
+            ax.set_ylabel("Nghìn ₫", fontsize=8)
 
         elif mode == "day":
             data = stat.get_revenue_by_day(days=7)
-            labels = [d for d, _ in data]
-            values = [v for _, v in data]
-            ax.bar(range(len(labels)), [v / 1000 for v in values],
-                   color='#90CAF9', width=0.6)
-            ax.set_xticks(range(len(labels)))
-            ax.set_xticklabels(labels, fontsize=8, rotation=45)
-            ax.set_ylabel("Nghìn ₫", fontsize=9)
+            if data:
+                dates, vals = zip(*data)
+                ax.bar(range(len(dates)), [v / 1000 for v in vals],
+                       color=color, width=0.6, zorder=3)
+                ax.set_xticks(range(len(dates)))
+                ax.set_xticklabels(dates, fontsize=7, rotation=45)
+            ax.set_ylabel("Nghìn ₫", fontsize=8)
 
         elif mode == "weekday":
             data = stat.get_revenue_by_weekday()
-            labels = [d for d, _ in data]
-            values = [v for _, v in data]
-            ax.bar(range(len(labels)), [v / 1000 for v in values],
-                   color='#90CAF9', width=0.6)
-            ax.set_xticks(range(len(labels)))
-            ax.set_xticklabels(labels, fontsize=8)
-            ax.set_ylabel("Nghìn ₫", fontsize=9)
+            if data:
+                days_lbl, vals = zip(*data)
+                ax.bar(range(len(days_lbl)), [v / 1000 for v in vals],
+                       color=color, width=0.6, zorder=3)
+                ax.set_xticks(range(len(days_lbl)))
+                ax.set_xticklabels(days_lbl, fontsize=8)
+            ax.set_ylabel("Nghìn ₫", fontsize=8)
 
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
+        ax.grid(axis='y', alpha=0.3, zorder=0)
         ax.tick_params(axis='both', labelsize=8)
-        self.rev_fig.tight_layout()
+        self.rev_fig.tight_layout(pad=0.5)
         self.rev_canvas.draw()
 
-    def _draw_cust_chart(self):
+    def _draw_cust_chart(self, mode: str):
         from services.statistic_service import StatisticService
         stat = StatisticService(self.session)
 
@@ -534,25 +1233,93 @@ class DashboardScreen(QWidget):
         ax.set_facecolor('white')
         self.cust_fig.patch.set_facecolor('white')
 
-        data = stat.get_customers_by_hour()
-        hours = list(range(24))
-        values = [0] * 24
-        for h, count in data:
-            values[h] = count
+        color = '#5B9BD5'
 
-        ax.plot(hours, values, color='#5B9BD5', linewidth=2)
-        ax.fill_between(hours, values, alpha=0.15, color='#5B9BD5')
-        ax.set_xticks([0, 5, 10, 15, 20, 23])
-        ax.set_xticklabels(
-            ["0:00", "5:00", "10:00", "15:00", "20:00", "23:00"],
-            fontsize=8
-        )
+        if mode == "hour":
+            data = stat.get_customers_by_hour()
+            hours_all = list(range(24))
+            vals = [0] * 24
+            for h, c in data:
+                vals[h] = c
+            labels = [f"{h:02d}h" for h in hours_all]
+            ax.fill_between(hours_all, vals, alpha=0.25, color=color)
+            ax.plot(hours_all, vals, color=color, linewidth=2)
+            ax.set_xticks([0, 5, 10, 15, 20, 23])
+            ax.set_xticklabels(
+                ["05:00", "07:00", "10:00", "13:00", "17:00", "20:00"],
+                fontsize=7
+            )
+
+        elif mode == "day":
+            data = stat.get_customers_by_day(days=7)
+            if data:
+                dates, vals = zip(*data)
+                ax.fill_between(range(len(dates)), vals, alpha=0.25, color=color)
+                ax.plot(range(len(dates)), vals, color=color, linewidth=2, marker='o', markersize=4)
+                ax.set_xticks(range(len(dates)))
+                ax.set_xticklabels(dates, fontsize=7, rotation=45)
+
+        elif mode == "weekday":
+            data = stat.get_customers_by_weekday()
+            if data:
+                days_lbl, vals = zip(*data)
+                ax.fill_between(range(len(days_lbl)), vals, alpha=0.25, color=color)
+                ax.plot(range(len(days_lbl)), vals, color=color, linewidth=2, marker='o', markersize=4)
+                ax.set_xticks(range(len(days_lbl)))
+                ax.set_xticklabels(days_lbl, fontsize=8)
+
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
+        ax.grid(alpha=0.3)
         ax.tick_params(axis='both', labelsize=8)
-        self.cust_fig.tight_layout()
+        self.cust_fig.tight_layout(pad=0.5)
         self.cust_canvas.draw()
 
+    def _draw_pie_chart(self):
+        from services.statistic_service import StatisticService
+        stat = StatisticService(self.session)
+
+        self.pie_fig.clear()
+        ax = self.pie_fig.add_subplot(111)
+        ax.set_facecolor('white')
+        self.pie_fig.patch.set_facecolor('white')
+
+        data = stat.get_revenue_by_category()
+
+        if not data:
+            ax.text(0.5, 0.5, "Chưa có dữ liệu",
+                    ha='center', va='center', transform=ax.transAxes,
+                    color='#888', fontsize=10)
+        else:
+            labels = [d[0] for d in data]
+            values = [d[1] for d in data]
+            colors = ['#1565C0', '#2E7D32', '#E65100', '#6A1B9A', '#C62828',
+                      '#00838F', '#F57F17', '#4527A0'][:len(labels)]
+
+            wedges, texts, autotexts = ax.pie(
+                values,
+                labels=None,
+                colors=colors,
+                autopct='%1.0f%%',
+                pctdistance=0.75,
+                startangle=90,
+                wedgeprops=dict(width=0.6)  # donut style
+            )
+            for t in autotexts:
+                t.set_fontsize(8)
+                t.set_color('white')
+
+            ax.legend(
+                wedges, labels,
+                loc="lower center",
+                ncol=3,
+                fontsize=7,
+                frameon=False,
+                bbox_to_anchor=(0.5, -0.15)
+            )
+
+        self.pie_fig.tight_layout(pad=0.3)
+        self.pie_canvas.draw()
     # ── TAB 1: USERS ──────────────────────────────────────────
     def _build_users(self) -> QWidget:
         widget = QWidget()
