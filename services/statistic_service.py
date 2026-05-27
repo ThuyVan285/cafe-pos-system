@@ -110,6 +110,7 @@ class StatisticService:
 
     def get_revenue_by_hour(self):
         from models.order import Order, OrderStatus
+        from models.payment import Payment
         from datetime import datetime
         from sqlalchemy import func
 
@@ -117,8 +118,9 @@ class StatisticService:
         results = (
             self._session.query(
                 func.hour(Order.created_at).label('hour'),
-                func.sum(Order.subtotal).label('revenue')
+                func.sum(Payment.total_amount).label('revenue')
             )
+            .join(Payment, Payment.order_id == Order.id)
             .filter(
                 Order.status == OrderStatus.PAID,
                 func.date(Order.created_at) == today
@@ -127,10 +129,11 @@ class StatisticService:
             .order_by('hour')
             .all()
         )
-        return [(int(r.hour), r.revenue or 0) for r in results]
+        return [(int(r.hour), int(r.revenue or 0)) for r in results]
 
     def get_revenue_by_day(self, days: int = 7):
         from models.order import Order, OrderStatus
+        from models.payment import Payment
         from datetime import datetime, timedelta
         from sqlalchemy import func
 
@@ -139,26 +142,29 @@ class StatisticService:
         for i in range(days - 1, -1, -1):
             d = today - timedelta(days=i)
             rev = (
-                    self._session.query(func.sum(Order.subtotal))
+                    self._session.query(func.sum(Payment.total_amount))
+                    .join(Order, Payment.order_id == Order.id)
                     .filter(
                         Order.status == OrderStatus.PAID,
                         func.date(Order.created_at) == d
                     )
                     .scalar() or 0
             )
-            result.append((d.strftime('%d/%m'), rev))
+            result.append((d.strftime('%d/%m'), int(rev)))
         return result
 
     def get_revenue_by_weekday(self):
         from models.order import Order, OrderStatus
+        from models.payment import Payment
         from sqlalchemy import func
 
         day_names = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN']
         results = (
             self._session.query(
                 func.dayofweek(Order.created_at).label('dow'),
-                func.sum(Order.subtotal).label('revenue')
+                func.sum(Payment.total_amount).label('revenue')
             )
+            .join(Payment, Payment.order_id == Order.id)
             .filter(Order.status == OrderStatus.PAID)
             .group_by(func.dayofweek(Order.created_at))
             .all()
@@ -169,8 +175,63 @@ class StatisticService:
         for r in results:
             idx = dow_map.get(int(r.dow), -1)
             if idx >= 0:
-                values[idx] = r.revenue or 0
+                values[idx] = int(r.revenue or 0)
         return list(zip(day_names, values))
+
+    def get_today_revenue(self) -> int:
+        from models.order import Order, OrderStatus
+        from models.payment import Payment
+        from datetime import datetime
+        from sqlalchemy import func
+
+        today = datetime.now().date()
+        result = (
+                self._session.query(func.sum(Payment.total_amount))
+                .join(Order, Payment.order_id == Order.id)
+                .filter(
+                    Order.status == OrderStatus.PAID,
+                    func.date(Order.created_at) == today
+                )
+                .scalar() or 0
+        )
+        return int(result)
+
+    def get_week_revenue(self) -> int:
+        from models.order import Order, OrderStatus
+        from models.payment import Payment
+        from datetime import datetime, timedelta
+        from sqlalchemy import func
+
+        start = datetime.now() - timedelta(days=7)
+        result = (
+                self._session.query(func.sum(Payment.total_amount))
+                .join(Order, Payment.order_id == Order.id)
+                .filter(
+                    Order.status == OrderStatus.PAID,
+                    Order.created_at >= start
+                )
+                .scalar() or 0
+        )
+        return int(result)
+
+    def get_month_revenue(self) -> int:
+        from models.order import Order, OrderStatus
+        from models.payment import Payment
+        from datetime import datetime
+        from sqlalchemy import func
+
+        now = datetime.now()
+        start = datetime(now.year, now.month, 1)
+        result = (
+                self._session.query(func.sum(Payment.total_amount))
+                .join(Order, Payment.order_id == Order.id)
+                .filter(
+                    Order.status == OrderStatus.PAID,
+                    Order.created_at >= start
+                )
+                .scalar() or 0
+        )
+        return int(result)
 
     def get_customers_by_hour(self):
         from models.order import Order, OrderStatus
