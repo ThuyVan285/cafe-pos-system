@@ -294,3 +294,12 @@ class ProductDialog(QDialog):
             "size": self.selected_size,
             "toppings": list(self.selected_toppings.values()),
         }
+
+    def _on_size_toggled(self, size, btn, checked: bool):
+        btn.setStyleSheet(self._size_style(checked))
+        if checked:
+            self._on_size_selected(size)
+        # Cập nhật style tất cả các nút khác về False
+        for b in self.size_btn_group.buttons():
+            if b is not btn:
+                b.setStyleSheet(self._size_style(False))

@@ -171,14 +171,14 @@ class DashboardScreen(QWidget):
                 ("👥", "Người dùng",     1),
                 ("🍹", "Sản phẩm",       2),
                 ("📈", "Báo cáo",        3),
-                ("⚙️", "Cấu hình",       4),
+
             ]
         else:  # MANAGER
             menus = [
                 ("📊", "Tổng quan",      0),
                 ("🍹", "Sản phẩm",       2),
                 ("📈", "Báo cáo",        3),
-                ("🪑", "Hỗ trợ bán hàng", 5),
+                ("🪑", "Hỗ trợ bán hàng", 4),
             ]
 
         for icon, label, idx in menus:
@@ -214,6 +214,18 @@ class DashboardScreen(QWidget):
 
         return sidebar
 
+    def _switch_tab(self, index, clicked_btn):
+        self.stack.setCurrentIndex(index)
+        titles = {
+            0: "📊  Tổng quan",
+            1: "👥  Quản lý người dùng",
+            2: "🍹  Quản lý sản phẩm",
+            3: "📈  Báo cáo doanh thu",
+            5: "🪑  Hỗ trợ bán hàng",
+        }
+        self.header_title.setText(titles.get(index, ""))
+        for btn, _ in self.sidebar_btns:
+            btn.set_active(btn == clicked_btn)
     # ── CONTENT ───────────────────────────────────────────────
     def _build_content(self) -> QWidget:
         widget = QWidget()
@@ -230,49 +242,51 @@ class DashboardScreen(QWidget):
             "background: white; border-bottom: 1px solid #DDE5F0;"
         )
         hb = QHBoxLayout(self.header_bar)
-        hb.setContentsMargins(20, 0, 20, 0)
+        hb.setContentsMargins(20, 0, 16, 0)
 
         self.header_title = QLabel("📊  Tổng quan")
-        self.header_title.setFont(
-            QFont("Segoe UI", 14, QFont.Weight.Bold)
-        )
+        self.header_title.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
         self.header_title.setStyleSheet("color: #1E2D3D;")
         hb.addWidget(self.header_title)
         hb.addStretch()
 
+        # ✅ THÊM NÚT MENU 3 GẠCH
+        self.admin_menu_btn = QPushButton("☰")
+        self.admin_menu_btn.setFixedSize(38, 38)
+        self.admin_menu_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.admin_menu_btn.setStyleSheet("""
+            QPushButton {
+                background: #F0F4FA;
+                color: #1565C0;
+                border: 1.5px solid #DDEAF8;
+                border-radius: 10px;
+                font-size: 18px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background: #E3F2FD;
+                border: 1.5px solid #1565C0;
+            }
+        """)
+        self.admin_menu_btn.clicked.connect(self._show_admin_menu)
+        hb.addWidget(self.admin_menu_btn)
+
         layout.addWidget(self.header_bar)
 
-        # Stack
+        # Stack giữ nguyên...
         self.stack = QStackedWidget()
-        self.stack.addWidget(self._build_overview())    # 0
-        self.stack.addWidget(self._build_users())       # 1
-        self.stack.addWidget(self._build_products())    # 2
-        self.stack.addWidget(self._build_reports())     # 3
-        self.stack.addWidget(self._build_settings())    # 4
-        self.stack.addWidget(self._build_pos_support()) # 5
+        self.stack.addWidget(self._build_overview())
+        self.stack.addWidget(self._build_users())
+        self.stack.addWidget(self._build_products())
+        self.stack.addWidget(self._build_reports())
+        self.stack.addWidget(self._build_pos_support())
 
         layout.addWidget(self.stack, 1)
 
-        # Chọn tab đầu tiên
         if self.sidebar_btns:
-            first_btn = self.sidebar_btns[0][0]
-            first_btn.set_active(True)
+            self.sidebar_btns[0][0].set_active(True)
 
         return widget
-
-    def _switch_tab(self, index, clicked_btn):
-        self.stack.setCurrentIndex(index)
-        titles = {
-            0: "📊  Tổng quan",
-            1: "👥  Quản lý người dùng",
-            2: "🍹  Quản lý sản phẩm",
-            3: "📈  Báo cáo doanh thu",
-            4: "⚙️  Cấu hình hệ thống",
-            5: "🪑  Hỗ trợ bán hàng",
-        }
-        self.header_title.setText(titles.get(index, ""))
-        for btn, _ in self.sidebar_btns:
-            btn.set_active(btn == clicked_btn)
 
     # ── TAB 0: OVERVIEW ───────────────────────────────────────
 
@@ -2032,3 +2046,394 @@ class DashboardScreen(QWidget):
         )
         if dialog.exec():
             self._load_products()
+
+    def _show_admin_menu(self):
+        from PyQt6.QtWidgets import QMenu, QWidgetAction
+        from PyQt6.QtGui import QAction
+
+        menu = QMenu(self)
+        menu.setStyleSheet("""
+            QMenu {
+                background: white;
+                border: 1px solid #E0E8F5;
+                border-radius: 12px;
+                padding: 6px;
+                font-size: 13px;
+            }
+            QMenu::item {
+                padding: 10px 20px 10px 12px;
+                border-radius: 8px;
+                color: #1E2D3D;
+                min-width: 220px;
+            }
+            QMenu::item:selected {
+                background: #EBF5FF;
+                color: #1565C0;
+            }
+            QMenu::separator {
+                height: 1px;
+                background: #EEF2F8;
+                margin: 4px 8px;
+            }
+        """)
+
+        # ── Header ────────────────────────────────────────────────
+        header_action = QWidgetAction(menu)
+        header_w = QWidget()
+        header_w.setStyleSheet("background: #F0F4FA; border-radius: 8px;")
+        header_l = QHBoxLayout(header_w)
+        header_l.setContentsMargins(12, 10, 12, 10)
+        header_l.setSpacing(10)
+
+        avatar = QLabel("👑")
+        avatar.setFixedSize(42, 42)
+        avatar.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        avatar.setStyleSheet("""
+            background: #0D47A1;
+            border-radius: 21px;
+            font-size: 20px;
+        """)
+
+        info = QVBoxLayout()
+        info.setSpacing(2)
+        lbl_name = QLabel(self.user.full_name)
+        lbl_name.setStyleSheet("font-weight: bold; font-size: 13px; color: #1E2D3D;")
+        lbl_role = QLabel(f"🔴  {self.user.role.value}  —  Toàn quyền hệ thống")
+        lbl_role.setStyleSheet("font-size: 11px; color: #888;")
+        info.addWidget(lbl_name)
+        info.addWidget(lbl_role)
+
+        header_l.addWidget(avatar)
+        header_l.addLayout(info)
+        header_action.setDefaultWidget(header_w)
+        menu.addAction(header_action)
+        menu.addSeparator()
+
+        # ── Tài khoản ─────────────────────────────────────────────
+        act_info = QAction("👤  Thông tin tài khoản", self)
+        act_info.triggered.connect(self._show_account_info)
+        menu.addAction(act_info)
+
+        act_pwd = QAction("🔒  Đổi mật khẩu", self)
+        act_pwd.triggered.connect(self._show_change_password)
+        menu.addAction(act_pwd)
+
+        menu.addSeparator()
+
+        # ── Hệ thống ──────────────────────────────────────────────
+        act_sys = QAction("🖥️  Thông tin hệ thống", self)
+        act_sys.triggered.connect(self._show_system_info)
+        menu.addAction(act_sys)
+
+        act_export = QAction("📤  Xuất báo cáo Excel", self)
+        act_export.triggered.connect(self._export_report)
+        menu.addAction(act_export)
+
+        menu.addSeparator()
+
+        act_logout = QAction("🚪  Đăng xuất", self)
+        act_logout.triggered.connect(self._on_logout)
+        menu.addAction(act_logout)
+
+        # Hiện menu tại vị trí nút
+        from PyQt6.QtCore import QPoint
+        pos = self.admin_menu_btn.mapToGlobal(
+            self.admin_menu_btn.rect().bottomRight()
+        )
+        menu.exec(pos - QPoint(menu.sizeHint().width(), 0))
+
+    def _show_account_info(self):
+        from PyQt6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout
+
+        d = QDialog(self)
+        d.setWindowTitle("Thông tin tài khoản")
+        d.setFixedWidth(360)
+        d.setStyleSheet("background: white;")
+
+        layout = QVBoxLayout(d)
+        layout.setContentsMargins(0, 0, 0, 0)
+
+        header = QWidget()
+        header.setFixedHeight(90)
+        header.setStyleSheet("background: #0D47A1;")
+        h = QVBoxLayout(header)
+        h.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        lbl_av = QLabel("👑")
+        lbl_av.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        lbl_av.setStyleSheet("font-size: 36px;")
+        lbl_n = QLabel(self.user.full_name)
+        lbl_n.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        lbl_n.setStyleSheet("color: white; font-size: 14px; font-weight: bold;")
+        h.addWidget(lbl_av)
+        h.addWidget(lbl_n)
+        layout.addWidget(header)
+
+        body = QWidget()
+        body.setStyleSheet("background: white;")
+        body_l = QVBoxLayout(body)
+        body_l.setContentsMargins(24, 16, 24, 20)
+        body_l.setSpacing(12)
+
+        for label, value in [
+            ("Tên đăng nhập", self.user.username),
+            ("Vai trò", f"👑 {self.user.role.value}"),
+            ("Trạng thái", "🟢 Đang hoạt động"),
+            ("Quyền hạn", "Toàn quyền hệ thống"),
+        ]:
+            row = QHBoxLayout()
+            lbl_k = QLabel(label + ":")
+            lbl_k.setFixedWidth(120)
+            lbl_k.setStyleSheet("color: #888; font-size: 13px;")
+            lbl_v = QLabel(value)
+            lbl_v.setStyleSheet(
+                "color: #1E2D3D; font-size: 13px; font-weight: bold;"
+            )
+            row.addWidget(lbl_k)
+            row.addWidget(lbl_v, 1)
+            body_l.addLayout(row)
+
+        btn_close = QPushButton("Đóng")
+        btn_close.setFixedHeight(40)
+        btn_close.setStyleSheet("""
+            QPushButton {
+                background: #1565C0; color: white;
+                border: none; border-radius: 8px; font-weight: bold;
+            }
+            QPushButton:hover { background: #1976D2; }
+        """)
+        btn_close.clicked.connect(d.accept)
+        body_l.addSpacing(8)
+        body_l.addWidget(btn_close)
+
+        layout.addWidget(body)
+        d.exec()
+
+    def _show_change_password(self):
+        import hashlib
+        from PyQt6.QtWidgets import QDialog, QVBoxLayout
+
+        d = QDialog(self)
+        d.setWindowTitle("Đổi mật khẩu")
+        d.setFixedWidth(360)
+        d.setStyleSheet("background: white;")
+
+        layout = QVBoxLayout(d)
+        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setSpacing(12)
+
+        lbl_title = QLabel("🔒  Đổi mật khẩu Admin")
+        lbl_title.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
+        lbl_title.setStyleSheet("color: #0D47A1;")
+        layout.addWidget(lbl_title)
+
+        inp_style = """
+            QLineEdit {
+                background: #F5F8FF; border: 1.5px solid #DDEAF8;
+                border-radius: 8px; padding: 0 12px;
+                height: 40px; font-size: 13px;
+            }
+            QLineEdit:focus { border: 1.5px solid #1565C0; }
+        """
+
+        def make_input(placeholder):
+            from PyQt6.QtWidgets import QLineEdit
+            inp = QLineEdit()
+            inp.setEchoMode(QLineEdit.EchoMode.Password)
+            inp.setPlaceholderText(placeholder)
+            inp.setStyleSheet(inp_style)
+            return inp
+
+        for lbl_text in ["Mật khẩu hiện tại:", "Mật khẩu mới:", "Xác nhận mật khẩu mới:"]:
+            lbl = QLabel(lbl_text)
+            lbl.setStyleSheet("color: #555; font-size: 12px; font-weight: bold;")
+            layout.addWidget(lbl)
+
+        inp_old = make_input("Nhập mật khẩu cũ...")
+        inp_new = make_input("Nhập mật khẩu mới...")
+        inp_confirm = make_input("Nhập lại mật khẩu mới...")
+
+        layout.addWidget(inp_old)
+        layout.addWidget(inp_new)
+        layout.addWidget(inp_confirm)
+
+        lbl_err = QLabel("")
+        lbl_err.setStyleSheet("""
+            color: #E53935; font-size: 12px;
+            background: #FFEBEE; border-radius: 6px; padding: 6px;
+        """)
+        lbl_err.setVisible(False)
+        layout.addWidget(lbl_err)
+
+        def on_save():
+            old = inp_old.text().strip()
+            new = inp_new.text().strip()
+            confirm = inp_confirm.text().strip()
+
+            if not old or not new or not confirm:
+                lbl_err.setText("⚠  Vui lòng nhập đầy đủ!")
+                lbl_err.setVisible(True)
+                return
+            if self.user.password_hash != hashlib.sha256(old.encode()).hexdigest():
+                lbl_err.setText("⚠  Mật khẩu hiện tại không đúng!")
+                lbl_err.setVisible(True)
+                return
+            if new != confirm:
+                lbl_err.setText("⚠  Mật khẩu mới không khớp!")
+                lbl_err.setVisible(True)
+                return
+            if len(new) < 6:
+                lbl_err.setText("⚠  Mật khẩu phải ít nhất 6 ký tự!")
+                lbl_err.setVisible(True)
+                return
+
+            self.user.password_hash = hashlib.sha256(new.encode()).hexdigest()
+            self.session.commit()
+            QMessageBox.information(d, "✅ Thành công", "Đổi mật khẩu thành công!")
+            d.accept()
+
+        btn_save = QPushButton("💾  Lưu mật khẩu mới")
+        btn_save.setFixedHeight(42)
+        btn_save.setStyleSheet("""
+            QPushButton {
+                background: #0D47A1; color: white;
+                border: none; border-radius: 8px;
+                font-size: 13px; font-weight: bold;
+            }
+            QPushButton:hover { background: #1565C0; }
+        """)
+        btn_save.clicked.connect(on_save)
+        layout.addWidget(btn_save)
+        d.exec()
+
+    def _show_system_info(self):
+        from PyQt6.QtWidgets import QDialog, QVBoxLayout
+        from models.order import Order, OrderStatus
+        from models.product import Product
+        from models.user import User
+        from datetime import datetime
+
+        d = QDialog(self)
+        d.setWindowTitle("Thông tin hệ thống")
+        d.setFixedWidth(400)
+        d.setStyleSheet("background: white;")
+
+        layout = QVBoxLayout(d)
+        layout.setContentsMargins(0, 0, 0, 0)
+
+        # Header
+        hdr = QWidget()
+        hdr.setFixedHeight(70)
+        hdr.setStyleSheet("background: #1565C0;")
+        hdr_l = QVBoxLayout(hdr)
+        hdr_l.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        lbl_h = QLabel("🖥️  Thông tin hệ thống")
+        lbl_h.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        lbl_h.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
+        lbl_h.setStyleSheet("color: white;")
+        hdr_l.addWidget(lbl_h)
+        layout.addWidget(hdr)
+
+        body = QWidget()
+        body.setStyleSheet("background: white;")
+        body_l = QVBoxLayout(body)
+        body_l.setContentsMargins(24, 16, 24, 20)
+        body_l.setSpacing(10)
+
+        # Lấy số liệu
+        total_orders = self.session.query(Order).count()
+        paid_orders = self.session.query(Order).filter(Order.status == OrderStatus.PAID).count()
+        total_products = self.session.query(Product).filter(Product.is_active == True).count()
+        total_users = self.session.query(User).filter(User.is_active == True).count()
+
+        from config.settings import DB_CONFIG
+        db_info = f"{DB_CONFIG.host}:{DB_CONFIG.port}/{DB_CONFIG.database}"
+
+        info_rows = [
+            ("🏷️  Tên ứng dụng", "Cafe POS"),
+            ("📦  Phiên bản", "1.0.0"),
+            ("🐍  Python", "3.11"),
+            ("🗄️  Database", db_info),
+            ("📋  Tổng orders", f"{total_orders:,}"),
+            ("✅  Đã thanh toán", f"{paid_orders:,}"),
+            ("🍹  Sản phẩm", f"{total_products:,}"),
+            ("👥  Người dùng", f"{total_users:,}"),
+            ("🕐  Thời gian hiện tại", datetime.now().strftime("%d/%m/%Y %H:%M:%S")),
+        ]
+
+        for label, value in info_rows:
+            card = QWidget()
+            card.setStyleSheet("""
+                QWidget {
+                    background: #F8FAFF;
+                    border-radius: 8px;
+                    border: 1px solid #E8EEF8;
+                }
+            """)
+            card.setFixedHeight(36)
+            row = QHBoxLayout(card)
+            row.setContentsMargins(12, 0, 12, 0)
+            lbl_k = QLabel(label)
+            lbl_k.setStyleSheet("color: #888; font-size: 12px; border: none;")
+            lbl_k.setFixedWidth(160)
+            lbl_v = QLabel(value)
+            lbl_v.setStyleSheet(
+                "color: #1E2D3D; font-size: 12px; font-weight: bold; border: none;"
+            )
+            row.addWidget(lbl_k)
+            row.addWidget(lbl_v, 1)
+            body_l.addWidget(card)
+
+        btn_close = QPushButton("Đóng")
+        btn_close.setFixedHeight(40)
+        btn_close.setStyleSheet("""
+            QPushButton {
+                background: #1565C0; color: white;
+                border: none; border-radius: 8px; font-weight: bold;
+            }
+            QPushButton:hover { background: #1976D2; }
+        """)
+        btn_close.clicked.connect(d.accept)
+        body_l.addSpacing(4)
+        body_l.addWidget(btn_close)
+
+        layout.addWidget(body)
+        d.exec()
+
+    def _export_report(self):
+        from PyQt6.QtWidgets import QFileDialog, QDialog, QVBoxLayout
+        from services.statistic_service import StatisticService
+        from datetime import datetime
+
+        # Hỏi chọn nơi lưu
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Xuất báo cáo Excel",
+            f"BaoCao_CafePOS_{datetime.now().strftime('%d%m%Y')}.csv",
+            "CSV Files (*.csv)"
+        )
+        if not file_path:
+            return
+
+        try:
+            stat = StatisticService(self.session)
+            top_products = stat.get_top_products(limit=50)
+
+            with open(file_path, 'w', encoding='utf-8-sig') as f:
+                # Header báo cáo
+                f.write(f"BÁO CÁO DOANH THU - CAFE POS\n")
+                f.write(f"Xuất lúc:,{datetime.now().strftime('%d/%m/%Y %H:%M:%S')}\n")
+                f.write(f"Doanh thu hôm nay:,{stat.get_today_revenue():,}₫\n")
+                f.write(f"Doanh thu tuần:,{stat.get_week_revenue():,}₫\n")
+                f.write(f"Doanh thu tháng:,{stat.get_month_revenue():,}₫\n")
+                f.write(f"Dự đoán ngày mai:,{stat.moving_average_prediction():,.0f}₫\n")
+                f.write("\n")
+                f.write("STT,Tên sản phẩm,Số lượng bán,Doanh thu (₫)\n")
+                for idx, (name, qty, revenue) in enumerate(top_products, 1):
+                    f.write(f"{idx},{name},{qty},{revenue}\n")
+
+            QMessageBox.information(
+                self, "✅ Xuất thành công",
+                f"Đã xuất báo cáo ra:\n{file_path}"
+            )
+        except Exception as e:
+            QMessageBox.critical(self, "❌ Lỗi", f"Không thể xuất file:\n{str(e)}")

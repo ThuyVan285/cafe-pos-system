@@ -89,8 +89,12 @@ class TableCard(QWidget):
 # ORDER ITEM ROW
 # =========================================================
 class OrderItemRow(QWidget):
-    def __init__(self, index, item, on_delete):
+    def __init__(self, index, item, on_delete,
+                 on_qty_change=None, on_note_change=None):
         super().__init__()
+        self.item = item
+        self.on_qty_change = on_qty_change
+        self.on_note_change = on_note_change
         self.setStyleSheet("background: white; border-bottom: 1px solid #EEF2F8;")
 
         v = QVBoxLayout(self)
@@ -100,11 +104,13 @@ class OrderItemRow(QWidget):
         row = QHBoxLayout()
         row.setSpacing(6)
 
+        # Nút xóa
         btn_del = QPushButton("🗑")
         btn_del.setFixedSize(26, 26)
         btn_del.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_del.setStyleSheet("""
-            QPushButton { background: transparent; border: none; color: #BDBDBD; font-size: 14px; }
+            QPushButton { background: transparent; border: none;
+                          color: #BDBDBD; font-size: 14px; }
             QPushButton:hover { color: #E53935; }
         """)
         btn_del.clicked.connect(lambda: on_delete(item))
@@ -117,45 +123,186 @@ class OrderItemRow(QWidget):
         if item.size:
             name += f" ({item.size})"
         lbl_name = QLabel(name)
-        lbl_name.setStyleSheet("color: #1E2D3D; font-size: 13px; font-weight: bold;")
+        lbl_name.setStyleSheet(
+            "color: #1E2D3D; font-size: 13px; font-weight: bold;"
+        )
         lbl_name.setWordWrap(True)
 
-        lbl_qty = QLabel(str(item.quantity))
-        lbl_qty.setFixedWidth(24)
-        lbl_qty.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        lbl_qty.setStyleSheet("color: #555; font-size: 13px;")
+        # ── +/- SỐ LƯỢNG ──────────────────────────────────────
+        qty_w = QWidget()
+        qty_w.setStyleSheet("background: transparent;")
+        qty_l = QHBoxLayout(qty_w)
+        qty_l.setContentsMargins(0, 0, 0, 0)
+        qty_l.setSpacing(3)
+
+        btn_minus = QPushButton("−")
+        btn_minus.setFixedSize(22, 22)
+        btn_minus.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_minus.setStyleSheet("""
+            QPushButton {
+                background: #EEF2F8; color: #555;
+                border: none; border-radius: 11px;
+                font-size: 15px; font-weight: bold;
+            }
+            QPushButton:hover { background: #E53935; color: white; }
+        """)
+
+        self.lbl_qty = QLabel(str(item.quantity))
+        self.lbl_qty.setFixedWidth(22)
+        self.lbl_qty.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.lbl_qty.setStyleSheet(
+            "color: #1E2D3D; font-size: 13px; font-weight: bold;"
+        )
+
+        btn_plus = QPushButton("+")
+        btn_plus.setFixedSize(22, 22)
+        btn_plus.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_plus.setStyleSheet("""
+            QPushButton {
+                background: #EEF2F8; color: #555;
+                border: none; border-radius: 11px;
+                font-size: 15px; font-weight: bold;
+            }
+            QPushButton:hover { background: #1565C0; color: white; }
+        """)
+
+        btn_minus.clicked.connect(self._on_minus)
+        btn_plus.clicked.connect(self._on_plus)
+
+        qty_l.addWidget(btn_minus)
+        qty_l.addWidget(self.lbl_qty)
+        qty_l.addWidget(btn_plus)
 
         lbl_unit = QLabel(f"{item.unit_price:,}")
-        lbl_unit.setFixedWidth(65)
+        lbl_unit.setFixedWidth(60)
         lbl_unit.setAlignment(Qt.AlignmentFlag.AlignRight)
         lbl_unit.setStyleSheet("color: #888; font-size: 12px;")
 
-        lbl_total = QLabel(f"{item.total_price:,}")
-        lbl_total.setFixedWidth(65)
-        lbl_total.setAlignment(Qt.AlignmentFlag.AlignRight)
-        lbl_total.setStyleSheet("color: #1E2D3D; font-size: 13px; font-weight: bold;")
+        self.lbl_total = QLabel(f"{item.total_price:,}")
+        self.lbl_total.setFixedWidth(65)
+        self.lbl_total.setAlignment(Qt.AlignmentFlag.AlignRight)
+        self.lbl_total.setStyleSheet(
+            "color: #1E2D3D; font-size: 13px; font-weight: bold;"
+        )
 
         row.addWidget(btn_del)
         row.addWidget(lbl_idx)
         row.addWidget(lbl_name, 1)
-        row.addWidget(lbl_qty)
+        row.addWidget(qty_w)
         row.addWidget(lbl_unit)
-        row.addWidget(lbl_total)
+        row.addWidget(self.lbl_total)
         v.addLayout(row)
 
-        note_btn = QPushButton("✏  Ghi chú món")
-        note_btn.setFixedHeight(24)
-        note_btn.setFixedWidth(160)
-        note_btn.setStyleSheet("""
-            QPushButton {
-                background: #F0F4FA; color: #90A4AE;
-                border: none; border-radius: 6px;
-                font-size: 11px; text-align: left; padding-left: 8px;
-            }
-            QPushButton:hover { background: #E3EAF5; color: #607D8B; }
-        """)
-        v.addWidget(note_btn)
+        # ── GHI CHÚ MÓN ──────────────────────────────────────
+        note_text = item.note if item.note else "✏  Ghi chú món"
+        self.note_btn = QPushButton(note_text)
+        self.note_btn.setFixedHeight(24)
+        self.note_btn.setFixedWidth(200)
+        self._refresh_note_style()
+        self.note_btn.clicked.connect(self._on_note_click)
+        v.addWidget(self.note_btn)
 
+    def _refresh_note_style(self):
+        has_note = bool(self.item.note)
+        self.note_btn.setText(
+            f"📝  {self.item.note}" if has_note else "✏  Ghi chú món"
+        )
+        if has_note:
+            self.note_btn.setStyleSheet("""
+                QPushButton {
+                    background: #E3F2FD; color: #1565C0;
+                    border: 1px solid #90CAF9;
+                    border-radius: 6px; font-size: 11px;
+                    text-align: left; padding-left: 8px;
+                    font-weight: bold;
+                }
+                QPushButton:hover { background: #BBDEFB; }
+            """)
+        else:
+            self.note_btn.setStyleSheet("""
+                QPushButton {
+                    background: #F0F4FA; color: #90A4AE;
+                    border: none; border-radius: 6px;
+                    font-size: 11px; text-align: left; padding-left: 8px;
+                }
+                QPushButton:hover { background: #E3EAF5; color: #607D8B; }
+            """)
+
+    def _on_minus(self):
+        if self.on_qty_change:
+            self.on_qty_change(self.item, -1)
+
+    def _on_plus(self):
+        if self.on_qty_change:
+            self.on_qty_change(self.item, +1)
+
+    def _on_note_click(self):
+        from PyQt6.QtWidgets import (
+            QDialog, QVBoxLayout, QHBoxLayout,
+            QLineEdit, QPushButton, QLabel
+        )
+        d = QDialog(self)
+        d.setWindowTitle("Ghi chú món")
+        d.setFixedWidth(340)
+        d.setStyleSheet("background: white;")
+
+        layout = QVBoxLayout(d)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(10)
+
+        lbl = QLabel(f"✏  Ghi chú cho: {self.item.product_name}")
+        lbl.setStyleSheet(
+            "color: #1565C0; font-size: 13px; font-weight: bold;"
+        )
+        layout.addWidget(lbl)
+
+        inp = QLineEdit(self.item.note or "")
+        inp.setPlaceholderText("Ví dụ: ít đường, nhiều đá, không đá...")
+        inp.setFixedHeight(42)
+        inp.setStyleSheet("""
+            QLineEdit {
+                background: #F5F8FF; border: 1.5px solid #DDEAF8;
+                border-radius: 8px; padding: 0 12px; font-size: 13px;
+            }
+            QLineEdit:focus { border: 1.5px solid #1565C0; }
+        """)
+        layout.addWidget(inp)
+
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(8)
+
+        btn_cancel = QPushButton("Hủy")
+        btn_cancel.setFixedHeight(38)
+        btn_cancel.setStyleSheet("""
+            QPushButton {
+                background: #EEF2F8; color: #555;
+                border: none; border-radius: 8px; font-size: 13px;
+            }
+            QPushButton:hover { background: #CFD8DC; }
+        """)
+        btn_cancel.clicked.connect(d.reject)
+
+        btn_save = QPushButton("💾  Lưu")
+        btn_save.setFixedHeight(38)
+        btn_save.setStyleSheet("""
+            QPushButton {
+                background: #1565C0; color: white;
+                border: none; border-radius: 8px;
+                font-size: 13px; font-weight: bold;
+            }
+            QPushButton:hover { background: #1976D2; }
+        """)
+        btn_save.clicked.connect(d.accept)
+        inp.returnPressed.connect(d.accept)
+
+        btn_row.addWidget(btn_cancel)
+        btn_row.addWidget(btn_save)
+        layout.addLayout(btn_row)
+
+        if d.exec():
+            note = inp.text().strip()
+            if self.on_note_change:
+                self.on_note_change(self.item, note)
 
 # =========================================================
 # RICH ORDER PANEL
@@ -170,6 +317,8 @@ class RichOrderPanel(QWidget):
         self.order = None
         self.on_delete = None
         self.on_pay = None
+        self.on_qty_change = None  # thêm
+        self.on_note_change = None  # thêm
         self._build()
 
     def _build(self):
@@ -352,14 +501,87 @@ class RichOrderPanel(QWidget):
 
         for idx, item in enumerate(order.items, 1):
             row = OrderItemRow(idx, item,
-                               self.on_delete if self.on_delete else lambda x: None)
+            self.on_delete if self.on_delete else lambda x: None,
+            on_qty_change=self.on_qty_change,  # thêm
+            on_note_change=self.on_note_change,  # thêm
+                               )
             self.items_layout.insertWidget(self.items_layout.count() - 1, row)
 
         total_qty = sum(i.quantity for i in order.items)
         self.lbl_count.setText(str(total_qty))
         self.lbl_total.setText(f"{order.subtotal:,}₫")
 
+        def set_notify_state(self, state: str):
+            """
+            state: 'default' | 'sent' | 'pending'
+            """
+            if state == "sent":
+                # Đã thông báo bếp — xanh lá
+                self.btn_notify.setText("✅  Đã thông báo")
+                self.btn_notify.setStyleSheet("""
+                    QPushButton {
+                        background: #2E7D32; color: white;
+                        border: none; border-radius: 8px;
+                        font-size: 12px; font-weight: bold;
+                    }
+                """)
+            elif state == "pending":
+                # Có món mới chưa gửi bếp — cam
+                self.btn_notify.setText("🔔  Gửi bếp (mới)")
+                self.btn_notify.setStyleSheet("""
+                    QPushButton {
+                        background: #E65100; color: white;
+                        border: none; border-radius: 8px;
+                        font-size: 12px; font-weight: bold;
+                    }
+                    QPushButton:hover { background: #BF360C; }
+                """)
+            else:
+                # Mặc định — xanh dương
+                self.btn_notify.setText("🔔  Thông báo")
+                self.btn_notify.setStyleSheet("""
+                    QPushButton {
+                        background: #1565C0; color: white;
+                        border: none; border-radius: 8px;
+                        font-size: 12px; font-weight: bold;
+                    }
+                    QPushButton:hover { background: #1976D2; }
+                """)
 
+    def set_notify_state(self, state: str):
+        """
+        state: 'default' | 'sent' | 'pending'
+        """
+        if state == "sent":
+            self.btn_notify.setText("✅  Đã thông báo")
+            self.btn_notify.setStyleSheet("""
+                QPushButton {
+                    background: #2E7D32; color: white;
+                    border: none; border-radius: 8px;
+                    font-size: 12px; font-weight: bold;
+                }
+                QPushButton:hover { background: #388E3C; }
+            """)
+        elif state == "pending":
+            self.btn_notify.setText("🔔  Gửi bếp (mới)")
+            self.btn_notify.setStyleSheet("""
+                QPushButton {
+                    background: #E65100; color: white;
+                    border: none; border-radius: 8px;
+                    font-size: 12px; font-weight: bold;
+                }
+                QPushButton:hover { background: #BF360C; }
+            """)
+        else:
+            self.btn_notify.setText("🔔  Thông báo")
+            self.btn_notify.setStyleSheet("""
+                QPushButton {
+                    background: #1565C0; color: white;
+                    border: none; border-radius: 8px;
+                    font-size: 12px; font-weight: bold;
+                }
+                QPushButton:hover { background: #1976D2; }
+            """)
 # =========================================================
 # POS SCREEN
 # =========================================================
@@ -590,7 +812,9 @@ class PosScreen(QWidget):
     # ── RIGHT ─────────────────────────────────────────────────
     def _build_right_panel(self) -> QWidget:
         self.order_panel = RichOrderPanel()
-        self.order_panel.on_delete = self._on_delete_item
+        self.order_panel.on_delete      = self._on_delete_item
+        self.order_panel.on_qty_change  = self._on_qty_change   # thêm
+        self.order_panel.on_note_change = self._on_note_change  # thêm
         self.order_panel.btn_pay.clicked.connect(self._on_pay)
         self.order_panel.btn_notify.clicked.connect(self._on_notify)
         self.order_panel.btn_transfer.clicked.connect(self._on_transfer_table)
@@ -912,6 +1136,61 @@ class PosScreen(QWidget):
         self.order_panel.load_order(
             self.current_order, self.current_table.name
         )
+        self.order_panel.set_notify_state("pending")
+
+    def _on_notify(self):
+        if not self.current_order or not self.current_order.items:
+            QMessageBox.warning(self, "Thông báo", "Chưa có món nào trong order!")
+            return
+        from ui.dialogs.notify_dialog import NotifyDialog
+        dialog = NotifyDialog(self.current_order, self.current_table, self)
+        if dialog.exec():
+            self.order_panel.set_notify_state("sent")  # ← THÊM DÒNG NÀY
+
+    def _on_qty_change(self, item, delta: int):
+        """Tăng/giảm số lượng món"""
+        new_qty = item.quantity + delta
+        if new_qty <= 0:
+            # Hỏi xóa luôn
+            from PyQt6.QtWidgets import QMessageBox
+            reply = QMessageBox.question(
+                self, "Xóa món?",
+                f"Xóa '{item.product_name}' khỏi order?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            )
+            if reply == QMessageBox.StandardButton.Yes:
+                self._on_delete_item(item)
+            return
+
+        try:
+            self.order_service.update_item_quantity(item.id, new_qty)
+            self.current_order = self.order_service.get_active_order(
+                self.current_table.id
+            )
+            self.order_panel.load_order(
+                self.current_order, self.current_table.name
+            )
+            # Đánh dấu có thay đổi chưa thông báo
+            self.order_panel.set_notify_state("pending")
+        except Exception as e:
+            from PyQt6.QtWidgets import QMessageBox
+            QMessageBox.warning(self, "Lỗi", str(e))
+
+    def _on_note_change(self, item, note: str):
+        """Lưu ghi chú món"""
+        try:
+            item.note = note
+            self.session.commit()
+            self.current_order = self.order_service.get_active_order(
+                self.current_table.id
+            )
+            self.order_panel.load_order(
+                self.current_order, self.current_table.name
+            )
+        except Exception as e:
+            self.session.rollback()
+            from PyQt6.QtWidgets import QMessageBox
+            QMessageBox.warning(self, "Lỗi", str(e))
 
     def _on_delete_item(self, item):
         try:
@@ -944,13 +1223,7 @@ class PosScreen(QWidget):
             self._show_table_view()
             self._refresh_cards()
 
-    def _on_notify(self):
-        if not self.current_order or not self.current_order.items:
-            QMessageBox.warning(self, "Thông báo", "Chưa có món nào trong order!")
-            return
-        from ui.dialogs.notify_dialog import NotifyDialog
-        dialog = NotifyDialog(self.current_order, self.current_table, self)
-        dialog.exec()
+
 
     def _on_print_temp(self):
         if not self.current_order or not self.current_order.items:
@@ -1442,12 +1715,5 @@ class PosScreen(QWidget):
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
         if reply == QMessageBox.StandardButton.Yes:
-            from ui.dialogs.login_dialog import LoginDialog
-            from ui.main_window import MainWindow
-            window = self.window()
-            login = LoginDialog()
-            if login.exec() == LoginDialog.DialogCode.Accepted:
-                user = login.logged_user
-                new_window = MainWindow(user)
-                new_window.show()
-            window.close()
+            from main import restart_to_login
+            restart_to_login(self)
