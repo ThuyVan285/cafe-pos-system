@@ -1,4 +1,3 @@
-# FILE: ui/screens/pos_screen.py
 from PyQt6.QtWidgets import (
     QWidget, QHBoxLayout, QVBoxLayout, QLabel,
     QPushButton, QGridLayout, QMessageBox,
@@ -24,27 +23,37 @@ from models.table import TableStatus
 # =========================================================
 # TABLE CARD
 # =========================================================
+# =========================================================
+# TABLE CARD — tự fill ô, thông tin TRONG nút xanh
+# =========================================================
 class TableCard(QWidget):
 
-    def __init__(self, table, callback):
+    def __init__(self, table, callback, order_data=None):
         super().__init__()
         self.table = table
-        self.setFixedHeight(74)
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.order_data = order_data
+        self.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Expanding
+        )
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(4, 4, 4, 4)
-        layout.setSpacing(4)
+        layout.setSpacing(3)
 
         self.btn = QPushButton()
-        self.btn.setFixedHeight(46)
         self.btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.btn.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Expanding
+        )
         self.btn.clicked.connect(lambda: callback(table))
 
+        # Tên bàn luôn nằm ngoài, bên dưới nút
         self.lbl = QLabel(table.name)
         self.lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.lbl.setFont(QFont("Segoe UI", 9))
+        self.lbl.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
+        self.lbl.setFixedHeight(16)
 
         layout.addWidget(self.btn)
         layout.addWidget(self.lbl)
@@ -53,38 +62,62 @@ class TableCard(QWidget):
     def refresh(self):
         is_using = self.table.status == TableStatus.USING
         is_takeaway = "Away" in self.table.name or "away" in self.table.name
-        icon = "🛍️" if is_takeaway else ""
-        self.btn.setText(icon)
 
-        if is_using:
+        if is_using and self.order_data:
+            total    = self.order_data.get('total', 0)
+            items_ct = self.order_data.get('items_count', 0)
+            time_str = self.order_data.get('time', '')
+
+            # Chỉ hiện thông tin order trong nút, không có tên bàn
+            self.btn.setText(
+                f"💰 {total:,}₫\n"
+                f"🍽 {items_ct} món  🕐 {time_str}"
+            )
+            self.btn.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
             self.btn.setStyleSheet("""
                 QPushButton {
                     background: #1565C0;
                     border: 2px solid #0D47A1;
-                    border-radius: 10px;
+                    border-radius: 14px;
                     color: white;
-                    font-size: 18px;
+                    font-size: 10px;
+                    text-align: center;
+                    padding: 4px;
                 }
                 QPushButton:hover { background: #1976D2; }
             """)
-            self.lbl.setStyleSheet("color: #1565C0; font-weight: bold; background: transparent;")
+            self.lbl.setStyleSheet("color: #1565C0; font-weight: bold;")
+
+        elif is_using:
+            self.btn.setText("🛍️" if is_takeaway else "")
+            self.btn.setFont(QFont("Segoe UI", 18))
+            self.btn.setStyleSheet("""
+                QPushButton {
+                    background: #1565C0;
+                    border: 2px solid #0D47A1;
+                    border-radius: 14px;
+                    color: white;
+                }
+                QPushButton:hover { background: #1976D2; }
+            """)
+            self.lbl.setStyleSheet("color: #1565C0; font-weight: bold;")
+
         else:
+            self.btn.setText("🛍️" if is_takeaway else "")
+            self.btn.setFont(QFont("Segoe UI", 18))
             self.btn.setStyleSheet("""
                 QPushButton {
                     background: white;
                     border: 2px solid #90CAF9;
-                    border-radius: 10px;
-                    color: #666;
-                    font-size: 18px;
+                    border-radius: 14px;
+                    color: #444;
                 }
                 QPushButton:hover {
                     background: #E3F2FD;
                     border: 2px solid #1565C0;
                 }
             """)
-            self.lbl.setStyleSheet("color: #333; background: transparent;")
-
-
+            self.lbl.setStyleSheet("color: #555;")
 # =========================================================
 # ORDER ITEM ROW
 # =========================================================
@@ -304,6 +337,7 @@ class OrderItemRow(QWidget):
             if self.on_note_change:
                 self.on_note_change(self.item, note)
 
+
 # =========================================================
 # RICH ORDER PANEL
 # =========================================================
@@ -501,52 +535,15 @@ class RichOrderPanel(QWidget):
 
         for idx, item in enumerate(order.items, 1):
             row = OrderItemRow(idx, item,
-            self.on_delete if self.on_delete else lambda x: None,
-            on_qty_change=self.on_qty_change,  # thêm
-            on_note_change=self.on_note_change,  # thêm
+                               self.on_delete if self.on_delete else lambda x: None,
+                               on_qty_change=self.on_qty_change,  # thêm
+                               on_note_change=self.on_note_change,  # thêm
                                )
             self.items_layout.insertWidget(self.items_layout.count() - 1, row)
 
         total_qty = sum(i.quantity for i in order.items)
         self.lbl_count.setText(str(total_qty))
         self.lbl_total.setText(f"{order.subtotal:,}₫")
-
-        def set_notify_state(self, state: str):
-            """
-            state: 'default' | 'sent' | 'pending'
-            """
-            if state == "sent":
-                # Đã thông báo bếp — xanh lá
-                self.btn_notify.setText("✅  Đã thông báo")
-                self.btn_notify.setStyleSheet("""
-                    QPushButton {
-                        background: #2E7D32; color: white;
-                        border: none; border-radius: 8px;
-                        font-size: 12px; font-weight: bold;
-                    }
-                """)
-            elif state == "pending":
-                # Có món mới chưa gửi bếp — cam
-                self.btn_notify.setText("🔔  Gửi bếp (mới)")
-                self.btn_notify.setStyleSheet("""
-                    QPushButton {
-                        background: #E65100; color: white;
-                        border: none; border-radius: 8px;
-                        font-size: 12px; font-weight: bold;
-                    }
-                    QPushButton:hover { background: #BF360C; }
-                """)
-            else:
-                # Mặc định — xanh dương
-                self.btn_notify.setText("🔔  Thông báo")
-                self.btn_notify.setStyleSheet("""
-                    QPushButton {
-                        background: #1565C0; color: white;
-                        border: none; border-radius: 8px;
-                        font-size: 12px; font-weight: bold;
-                    }
-                    QPushButton:hover { background: #1976D2; }
-                """)
 
     def set_notify_state(self, state: str):
         """
@@ -582,6 +579,8 @@ class RichOrderPanel(QWidget):
                 }
                 QPushButton:hover { background: #1976D2; }
             """)
+
+
 # =========================================================
 # POS SCREEN
 # =========================================================
@@ -608,6 +607,11 @@ class PosScreen(QWidget):
         self.filter_mode = "all"
         self.selected_category = None  # ✅ khởi tạo ở đây
         self.cat_buttons = {}
+
+        # Phân trang
+        self.current_page = 0
+        self.tables_per_page = 25  # 5 cột x 3 hàng
+        self.total_pages = 0
 
         self.build_ui()
 
@@ -771,23 +775,86 @@ class PosScreen(QWidget):
         self.category_scroll.setVisible(False)
         layout.addWidget(self.category_scroll)
 
-        # TABLE SCROLL
-        self.scroll_area = QScrollArea()
-        self.scroll_area.setWidgetResizable(True)
-        self.scroll_area.setStyleSheet("""
-            QScrollArea { border: none; background: transparent; }
-            QScrollBar:vertical { background: #DDE8F8; width: 7px; border-radius: 3px; }
-            QScrollBar::handle:vertical { background: #90B4D8; border-radius: 3px; }
-        """)
+        # TABLE GRID + PAGINATION
+        grid_widget = QWidget()
+        grid_layout = QVBoxLayout(grid_widget)
+        grid_layout.setContentsMargins(0, 0, 0, 0)
+        grid_layout.setSpacing(8)
+
+        # Thay đoạn scroll_area + grid_widget bằng:
         self.grid_container = QWidget()
         self.grid_container.setStyleSheet("background: transparent;")
         self.table_grid = QGridLayout(self.grid_container)
-        self.table_grid.setSpacing(10)
-        self.table_grid.setAlignment(
-            Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft
+        self.table_grid.setSpacing(8)
+        # Không setAlignment — để tự fill
+
+        layout.addWidget(self.grid_container, 1)  # ✅ stretch=1 fill hết chiều cao
+
+        layout.addWidget(self.grid_container, 1)
+
+        # ── PAGINATION BAR ────────────────────────────────────
+        self.pagination_bar = QWidget()
+        self.pagination_bar.setFixedHeight(40)
+        self.pagination_bar.setStyleSheet("background: transparent;")
+        pagination_layout = QHBoxLayout(self.pagination_bar)
+        pagination_layout.setContentsMargins(0, 0, 0, 0)
+        pagination_layout.setSpacing(8)
+
+        self.btn_prev = QPushButton("◀  Trang trước")
+        self.btn_prev.setFixedHeight(32)
+        self.btn_prev.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_prev.setStyleSheet("""
+                    QPushButton {
+                        background: white; color: #1565C0;
+                        border: 1.5px solid #90CAF9;
+                        border-radius: 8px; font-size: 12px; font-weight: bold;
+                        padding: 0 16px;
+                    }
+                    QPushButton:hover { background: #E3F2FD; }
+                    QPushButton:pressed { background: #BBDEFB; }
+                """)
+        self.btn_prev.clicked.connect(self._on_prev_page)
+
+        self.lbl_page = QLabel("1 / 1")
+        self.lbl_page.setStyleSheet(
+            "color: #1565C0; font-weight: bold; font-size: 13px;"
         )
+        self.lbl_page.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.lbl_page.setFixedWidth(60)
+
+        self.btn_next = QPushButton("Trang sau  ▶")
+        self.btn_next.setFixedHeight(32)
+        self.btn_next.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_next.setStyleSheet("""
+                    QPushButton {
+                        background: white; color: #1565C0;
+                        border: 1.5px solid #90CAF9;
+                        border-radius: 8px; font-size: 12px; font-weight: bold;
+                        padding: 0 16px;
+                    }
+                    QPushButton:hover { background: #E3F2FD; }
+                    QPushButton:pressed { background: #BBDEFB; }
+                """)
+        self.btn_next.clicked.connect(self._on_next_page)
+
+        pagination_layout.addWidget(self.btn_prev)
+        pagination_layout.addStretch()
+        pagination_layout.addWidget(self.lbl_page)
+        pagination_layout.addStretch()
+        pagination_layout.addWidget(self.btn_next)
+
+
+
+        # ── SCROLL AREA bọc grid ──────────────────────────────
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setStyleSheet("""
+                    QScrollArea { border: none; background: transparent; }
+                """)
         self.scroll_area.setWidget(self.grid_container)
         layout.addWidget(self.scroll_area, 1)
+
+        layout.addWidget(self.pagination_bar)
 
         # PRODUCT SCROLL — ẩn ban đầu
         self.scroll_product = QScrollArea()
@@ -812,8 +879,8 @@ class PosScreen(QWidget):
     # ── RIGHT ─────────────────────────────────────────────────
     def _build_right_panel(self) -> QWidget:
         self.order_panel = RichOrderPanel()
-        self.order_panel.on_delete      = self._on_delete_item
-        self.order_panel.on_qty_change  = self._on_qty_change   # thêm
+        self.order_panel.on_delete = self._on_delete_item
+        self.order_panel.on_qty_change = self._on_qty_change  # thêm
         self.order_panel.on_note_change = self._on_note_change  # thêm
         self.order_panel.btn_pay.clicked.connect(self._on_pay)
         self.order_panel.btn_notify.clicked.connect(self._on_notify)
@@ -842,7 +909,9 @@ class PosScreen(QWidget):
 
     def _on_filter(self, mode):
         self.filter_mode = mode
+        self.current_page = 0  # Reset về trang 1
         if hasattr(self, 'table_grid'):
+            self._load_tables()
             self._render_table_grid()
 
     # ── CATEGORY BAR ──────────────────────────────────────────
@@ -858,15 +927,15 @@ class PosScreen(QWidget):
         self.cat_buttons = {}
 
         icons = {
-            "Cà phê":         "☕",
-            "Trà sữa":        "🧋",
-            "Trà":            "🍵",
-            "Latte và Sữa":   "🥛",
-            "Nước ép":        "🍹",
-            "Sữa chua":       "🍦",
+            "Cà phê": "☕",
+            "Trà sữa": "🧋",
+            "Trà": "🍵",
+            "Latte và Sữa": "🥛",
+            "Nước ép": "🍹",
+            "Sữa chua": "🍦",
             "Nước giải khát": "🥤",
-            "Sinh tố":        "🍓",
-            "Topping":        "✨",
+            "Sinh tố": "🍓",
+            "Topping": "✨",
         }
 
         # Nút Tất cả — active mặc định
@@ -932,6 +1001,24 @@ class PosScreen(QWidget):
     # ── TABLES ────────────────────────────────────────────────
     def _load_tables(self):
         self.all_tables = self.table_repo.get_all()
+
+        # Lọc theo filter mode
+        if self.filter_mode == "using":
+            filtered_tables = [t for t in self.all_tables if t.status == TableStatus.USING]
+        elif self.filter_mode == "empty":
+            filtered_tables = [t for t in self.all_tables if t.status == TableStatus.EMPTY]
+        else:
+            filtered_tables = self.all_tables
+
+        self.filtered_tables = filtered_tables
+        self.total_pages = (len(filtered_tables) + self.tables_per_page - 1) // self.tables_per_page
+        if self.total_pages == 0:
+            self.total_pages = 1
+
+        # Clamp current_page
+        if self.current_page >= self.total_pages:
+            self.current_page = self.total_pages - 1
+
         self._render_table_grid()
 
     def _render_table_grid(self):
@@ -941,26 +1028,58 @@ class PosScreen(QWidget):
                 item.widget().deleteLater()
         self.table_cards.clear()
 
-        if self.filter_mode == "using":
-            tables = [t for t in self.all_tables if t.status == TableStatus.USING]
-        elif self.filter_mode == "empty":
-            tables = [t for t in self.all_tables if t.status == TableStatus.EMPTY]
-        else:
-            tables = self.all_tables
-
+        # Cập nhật filter labels
         using = sum(1 for t in self.all_tables if t.status == TableStatus.USING)
         empty = len(self.all_tables) - using
         self.rb_all.setText(f"Tất cả ({len(self.all_tables)})")
         self.rb_using.setText(f"Sử dụng ({using})")
         self.rb_empty.setText(f"Còn trống ({empty})")
 
-        COLS = 7
-        for idx, table in enumerate(tables):
-            card = TableCard(table, self.select_table)
+        # Lấy bàn trang hiện tại
+        start = self.current_page * self.tables_per_page
+        end = start + self.tables_per_page
+        tables_page = self.filtered_tables[start:end]
+
+        COLS = 5
+        ROWS = 5
+
+        for idx, table in enumerate(tables_page):
+            order_data = None
+            if table.status == TableStatus.USING:
+                order = self.order_service.get_active_order(table.id)
+                if order:
+                    items_count = sum(i.quantity for i in order.items)
+                    order_data = {
+                        'total': order.subtotal,
+                        'items_count': items_count,
+                        'time': order.created_at.strftime("%H:%M"),
+                    }
+
+            card = TableCard(table, self.select_table, order_data)
             self.table_cards[table.id] = card
-            self.table_grid.addWidget(card, idx // COLS, idx % COLS)
+            row = idx // COLS
+            col = idx % COLS
+            self.table_grid.addWidget(card, row, col)
+
+        # ✅ Stretch đều tất cả cột và hàng
         for col in range(COLS):
             self.table_grid.setColumnStretch(col, 1)
+        for row in range(ROWS):
+            self.table_grid.setRowStretch(row, 1)
+
+        # Pagination
+        self.lbl_page.setText(f"{self.current_page + 1} / {self.total_pages}")
+        self.btn_prev.setEnabled(self.current_page > 0)
+        self.btn_next.setEnabled(self.current_page < self.total_pages - 1)
+    def _on_prev_page(self):
+        if self.current_page > 0:
+            self.current_page -= 1
+            self._render_table_grid()
+
+    def _on_next_page(self):
+        if self.current_page < self.total_pages - 1:
+            self.current_page += 1
+            self._render_table_grid()
 
     # ── PRODUCTS ──────────────────────────────────────────────
     def _load_product_grid(self, keyword=""):
@@ -1223,8 +1342,6 @@ class PosScreen(QWidget):
             self._show_table_view()
             self._refresh_cards()
 
-
-
     def _on_print_temp(self):
         if not self.current_order or not self.current_order.items:
             QMessageBox.warning(self, "Thông báo", "Chưa có món nào!")
@@ -1336,9 +1453,8 @@ class PosScreen(QWidget):
                 QMessageBox.critical(self, "Lỗi", str(e))
 
     def _refresh_cards(self):
-        self.all_tables = self.table_repo.get_all()
-        if hasattr(self, 'table_grid'):
-            self._render_table_grid()
+        self.current_page = 0  # Reset về trang 1
+        self._load_tables()
 
     def _show_staff_menu(self):
         from PyQt6.QtWidgets import QMenu, QWidgetAction
