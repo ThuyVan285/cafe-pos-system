@@ -376,6 +376,12 @@ class DashboardScreen(QWidget):
             Order.status == OrderStatus.PAID
         ).all()
 
+        def fmt_rev(v):
+            v = int(v)
+            if v == 0:
+                return "0đ"
+            return f"{v:,}đ"
+
         # =========================================================
         # TITLE
         # =========================================================
@@ -388,15 +394,11 @@ class DashboardScreen(QWidget):
         # =========================================================
         # FORMAT
         # =========================================================
-        def fmt_rev(v):
-            if v >= 1_000_000:
-                return f"{v / 1_000_000:.2f} triệu"
-
-            elif v >= 1_000:
-                return f"{int(v / 1_000):,}k"
-
-            return f"{v:,}₫"
-
+        def fmt_money(v):
+            v = int(v)
+            if v == 0:
+                return "0đ"
+            return f"{v:,}đ"
         # =========================================================
         # TOP CARDS
         # =========================================================
@@ -1675,50 +1677,138 @@ class DashboardScreen(QWidget):
         month_rev = stat.get_month_revenue()
         pred_rev = stat.moving_average_prediction()
 
-        def fmt(v):
-            if v >= 1_000_000:
-                return f"{v / 1_000_000:.1f}M₫"
-            if v >= 1_000:
-                return f"{int(v / 1_000)}k₫"
-            return f"{v}₫"
+        def fmt_money(v):
+            v = int(v)
+            if v == 0:
+                return "0đ"
+            return f"{v:,}đ"
+
+        # So sánh hôm nay vs TB ngày trong tuần
+        avg_day = week_rev / 7 if week_rev else 0
+        if avg_day > 0:
+            diff_pct = ((today_rev - avg_day) / avg_day) * 100
+            trend_today = f"{'▲' if diff_pct >= 0 else '▼'} {abs(diff_pct):.0f}% so với TB tuần"
+            trend_color_today = "#2E7D32" if diff_pct >= 0 else "#E53935"
+        else:
+            trend_today = "Chưa có dữ liệu so sánh"
+            trend_color_today = "#888"
+
+        # Lấy doanh thu tuần trước để so sánh
+        from datetime import datetime, timedelta
+        last_week_start = datetime.now().date() - timedelta(days=14)
+        last_week_end = datetime.now().date() - timedelta(days=7)
+        from models.order import Order, OrderStatus
+        from models.payment import Payment
+        from sqlalchemy import func
+        last_week_rev = self.session.query(
+            func.sum(Payment.total_amount)
+        ).join(Order, Order.id == Payment.order_id).filter(
+            Order.status == OrderStatus.PAID,
+            func.date(Order.created_at) >= last_week_start,
+            func.date(Order.created_at) < last_week_end
+        ).scalar() or 0
+
+        if last_week_rev > 0:
+            diff_week = ((week_rev - last_week_rev) / last_week_rev) * 100
+            trend_week = f"{'▲' if diff_week >= 0 else '▼'} {abs(diff_week):.0f}% so với tuần trước"
+            trend_color_week = "#2E7D32" if diff_week >= 0 else "#E53935"
+        else:
+            trend_week = "Chưa có dữ liệu tuần trước"
+            trend_color_week = "#888"
 
         cards_widget = QWidget()
         cards_widget.setStyleSheet("background: transparent;")
         cards_row = QHBoxLayout(cards_widget)
         cards_row.setContentsMargins(0, 0, 0, 0)
-        cards_row.setSpacing(12)
+        cards_row.setSpacing(14)
 
-        for icon, label, value, color in [
-            ("📅", "Hôm nay", fmt(today_rev), "#2E7D32"),
-            ("📆", "Tuần này", fmt(week_rev), "#1565C0"),
-            ("🗓", "Tháng này", fmt(month_rev), "#6A1B9A"),
-            ("🤖", "Dự đoán", fmt(pred_rev), "#E65100"),
-        ]:
+        card_data = [
+            {
+                "icon": "📅",
+                "label": "Hôm nay",
+                "value": fmt_money(today_rev),
+                "trend": trend_today,
+                "trend_color": trend_color_today,
+                "color": "#2E7D32",
+                "bg": "#F1F8E9",
+            },
+            {
+                "icon": "7️⃣",
+                "label": "Tuần này",
+                "value": fmt_money(week_rev),
+                "trend": trend_week,
+                "trend_color": trend_color_week,
+                "color": "#1565C0",
+                "bg": "#E3F2FD",
+            },
+            {
+                "icon": "📆",
+                "label": "Tháng này",
+                "value": fmt_money(month_rev),
+                "trend": f"{datetime.now().strftime('%m/%Y')}",
+                "trend_color": "#888",
+                "color": "#6A1B9A",
+                "bg": "#F3E5F5",
+            },
+            {
+                "icon": "🎯",
+                "label": "Dự đoán ngày mai",
+                "value": fmt_money(pred_rev),
+                "trend": "Moving Average 7 ngày",
+                "trend_color": "#888",
+                "color": "#E65100",
+                "bg": "#FFF3E0",
+            },
+        ]
+
+        for cd in card_data:
             card = QWidget()
+            card.setMinimumHeight(130)
             card.setStyleSheet(f"""
                 QWidget {{
                     background: white;
-                    border-radius: 12px;
-                    border-top: 4px solid {color};
+                    border-radius: 14px;
+                    border-top: 5px solid {cd['color']};
                 }}
             """)
             cl = QVBoxLayout(card)
-            cl.setContentsMargins(16, 14, 16, 14)
-            cl.setSpacing(4)
+            cl.setContentsMargins(18, 14, 18, 14)
+            cl.setSpacing(6)
 
+            # Icon + label row
             top_row = QHBoxLayout()
-            lbl_ic = QLabel(icon)
-            lbl_ic.setStyleSheet("font-size: 20px; border: none;")
-            lbl_t = QLabel(label)
-            lbl_t.setStyleSheet(f"color: #888; font-size: 12px; border: none;")
-            top_row.addWidget(lbl_ic)
-            top_row.addWidget(lbl_t, 1)
+            top_row.setSpacing(8)
+
+            icon_badge = QLabel(cd["icon"])
+            icon_badge.setFixedSize(36, 36)
+            icon_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            icon_badge.setStyleSheet(f"""
+                background: {cd['bg']};
+                border-radius: 10px;
+                font-size: 18px;
+            """)
+
+            lbl_label = QLabel(cd["label"])
+            lbl_label.setStyleSheet(
+                "color: #78909C; font-size: 12px; font-weight: bold; border: none;"
+            )
+
+            top_row.addWidget(icon_badge)
+            top_row.addWidget(lbl_label, 1)
             cl.addLayout(top_row)
 
-            lbl_val = QLabel(value)
-            lbl_val.setFont(QFont("Segoe UI", 20, QFont.Weight.Bold))
-            lbl_val.setStyleSheet(f"color: {color}; border: none;")
+            # Value
+            lbl_val = QLabel(cd["value"])
+            lbl_val.setFont(QFont("Segoe UI", 22, QFont.Weight.Bold))
+            lbl_val.setStyleSheet(f"color: {cd['color']}; border: none;")
             cl.addWidget(lbl_val)
+
+            # Trend / sub
+            lbl_trend = QLabel(cd["trend"])
+            lbl_trend.setStyleSheet(
+                f"color: {cd['trend_color']}; font-size: 11px; border: none;"
+            )
+            cl.addWidget(lbl_trend)
 
             cards_row.addWidget(card)
 

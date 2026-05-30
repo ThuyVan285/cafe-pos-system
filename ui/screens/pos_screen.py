@@ -70,8 +70,8 @@ class TableCard(QWidget):
 
             # Chỉ hiện thông tin order trong nút, không có tên bàn
             self.btn.setText(
-                f"💰 {total:,}₫\n"
-                f"🍽 {items_ct} món  🕐 {time_str}"
+                f"💲 {total:,}₫\n"
+                f"🍽 {items_ct}   {time_str}"
             )
             self.btn.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
             self.btn.setStyleSheet("""
@@ -1191,6 +1191,7 @@ class PosScreen(QWidget):
         # Ẩn filter bàn, hiện category bar
         self.filter_widget.setVisible(False)
         self.category_scroll.setVisible(True)
+        self.pagination_bar.setVisible(False)
 
         self.btn_tab_menu.setStyleSheet("""
             QPushButton {

@@ -65,7 +65,7 @@ def init_database():
                 status=TableStatus.EMPTY,
                 capacity=0,
             ))
-            for i in range(1, 11):
+            for i in range(1, 41):
                 session.add(CafeTable(
                     code=f"TB{i:03d}",
                     name=f"Table {i}",
