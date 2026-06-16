@@ -5,12 +5,13 @@ from sqlalchemy.orm import Session
 from models.order import Order, OrderStatus
 from models.order_item import OrderItem, OrderItemTopping
 from models.table import TableStatus
-from models.product import Topping
+from models.product import Product, Topping
 
 from repositories.order_repository import OrderRepository
 from repositories.order_item_repository import OrderItemRepository
 from repositories.product_repository import ProductRepository
 from repositories.table_repository import TableRepository
+
 
 
 @dataclass
@@ -48,28 +49,44 @@ class OrderService:
     def get_active_order(self, table_id: int):
         return self.order_repo.get_active_by_table(table_id)
 
-    def add_item(self, order: Order, request: AddItemRequest) -> OrderItem:
-        product = self.product_repo.get_by_id(request.product_id)
-        if not product:
-            raise ValueError("Product not found")
+    def add_item(self, order, product_id, size="", toppings=None):
+        toppings = toppings or []
 
-        unit_price = self._calculate_price(product, request.size)
+        product = self.session.get(Product, product_id)  # ✅ dùng session.get thay .query().get() (deprecated)
+
+        unit_price = product.base_price
+
+        if size:
+            size_obj = next((s for s in product.sizes if s.size == size), None)
+            if size_obj:
+                unit_price += size_obj.price_delta
+
+        topping_total = sum(t.price for t in toppings)
+        unit_price += topping_total
 
         item = OrderItem(
             order_id=order.id,
             product_id=product.id,
             product_name=product.name,
-            size=request.size,
-            quantity=request.quantity,
+            size=size,
+            quantity=1,
             unit_price=unit_price,
-            note=request.note,
+            note="",
         )
-        self.item_repo.create(item)
+        self.session.add(item)
         self.session.flush()
-        self._attach_toppings(item, request.toppings)
+
+        for topping in toppings:
+            ot = OrderItemTopping(
+                order_item_id=item.id,
+                topping_id=topping.id,
+                topping_name=topping.name,
+                topping_price=topping.price,  # ✅ sửa ở đây
+            )
+            self.session.add(ot)
+
         self.table_repo.update_status(order.table_id, TableStatus.USING)
         self.session.commit()
-        self.session.refresh(item)
         return item
 
     def update_item_quantity(self, item_id: int, quantity: int):

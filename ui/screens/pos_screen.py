@@ -155,6 +155,12 @@ class OrderItemRow(QWidget):
         name = item.product_name
         if item.size:
             name += f" ({item.size})"
+
+        # ✅ Hiển thị toppings
+        if item.toppings:
+            topping_names = ", ".join(t.topping_name for t in item.toppings)
+            name += f"\n+ {topping_names}"
+
         lbl_name = QLabel(name)
         lbl_name.setStyleSheet(
             "color: #1E2D3D; font-size: 13px; font-weight: bold;"
@@ -1240,10 +1246,13 @@ class PosScreen(QWidget):
             if dialog.exec():
                 result = dialog.get_result()
                 size_name = result["size"].size if result["size"] else ""
+                selected_toppings = result.get("toppings", [])  # ✅ list các Topping object
+
                 self.order_controller.add_product(
                     self.current_order,
                     product.id,
                     size=size_name,
+                    toppings=selected_toppings,  # ✅ truyền topping
                 )
         else:
             self.order_controller.add_product(
