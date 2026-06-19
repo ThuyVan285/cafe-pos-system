@@ -28,7 +28,7 @@ class StatisticService:
 
         return total
 
-    def moving_average_prediction(self, days: int = 3) -> float:
+    def moving_average_prediction(self, days: int = 7) -> float:
 
         orders = (
             self._session.query(Order)
