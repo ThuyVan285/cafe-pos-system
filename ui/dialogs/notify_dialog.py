@@ -5,7 +5,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QFont
-
+import qtawesome as qta
 
 class NotifyDialog(QDialog):
 
@@ -32,8 +32,8 @@ class NotifyDialog(QDialog):
         h = QHBoxLayout(header)
         h.setContentsMargins(16, 0, 16, 0)
 
-        icon = QLabel("🔔")
-        icon.setStyleSheet("font-size: 22px;")
+        icon = QLabel()
+        icon.setPixmap(qta.icon('fa5s.bell', color='white').pixmap(22, 22))
 
         title = QLabel(f"Thông báo pha chế  —  {self.table.name}")
         title.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
@@ -162,8 +162,8 @@ class NotifyDialog(QDialog):
         """)
         btn_cancel.clicked.connect(self.reject)
 
-        self.btn_send = QPushButton("🔔  Gửi thông báo")
-        self.btn_send.setFixedHeight(38)
+        self.btn_send = QPushButton("  Gửi thông báo")
+        self.btn_send.setIcon(qta.icon('fa5s.bell', color='white'))
         self.btn_send.setStyleSheet("""
             QPushButton {
                 background: #1565C0; color: white;
@@ -179,8 +179,8 @@ class NotifyDialog(QDialog):
         layout.addWidget(footer)
 
     def _on_send(self):
-        # Đổi nút thành "Đã gửi"
-        self.btn_send.setText("✅  Đã gửi pha chế!")
+        self.btn_send.setText("  Đã gửi pha chế!")
+        self.btn_send.setIcon(qta.icon('fa5s.check-circle', color='white'))
         self.btn_send.setStyleSheet("""
             QPushButton {
                 background: #2E7D32; color: white;
@@ -189,6 +189,8 @@ class NotifyDialog(QDialog):
             }
         """)
         self.btn_send.setEnabled(False)
-
         # Tự đóng sau 1.5 giây
         QTimer.singleShot(1500, self.accept)
+
+
+

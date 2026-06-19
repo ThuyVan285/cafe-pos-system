@@ -7,6 +7,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont, QColor
+import qtawesome as qta
 
 from database.db import get_session
 from repositories.table_repository import TableRepository
@@ -64,32 +65,35 @@ class TableCard(QWidget):
         is_takeaway = "Away" in self.table.name or "away" in self.table.name
 
         if is_using and self.order_data:
-            total    = self.order_data.get('total', 0)
+            total = self.order_data.get('total', 0)
             items_ct = self.order_data.get('items_count', 0)
             time_str = self.order_data.get('time', '')
 
-            # Chỉ hiện thông tin order trong nút, không có tên bàn
-            self.btn.setText(
-                f"💲 {total:,}₫\n"
-                f"🍽 {items_ct}   {time_str}"
-            )
-            self.btn.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
+            self.btn.setText(f"{total:,}₫\n{items_ct}   {time_str}")
+            self.btn.setIcon(qta.icon(
+                'fa5s.shopping-bag' if is_takeaway else 'fa5s.chair', color='white'
+            ))
+            self.btn.setIconSize(self.btn.iconSize())
             self.btn.setStyleSheet("""
                 QPushButton {
-                    background: #1565C0;
-                    border: 2px solid #0D47A1;
-                    border-radius: 14px;
-                    color: white;
-                    font-size: 10px;
-                    text-align: center;
-                    padding: 4px;
+                    background: #1565C0; border: 2px solid #0D47A1;
+                    border-radius: 14px; color: white;
+                    font-size: 10px; text-align: center; padding: 4px;
                 }
                 QPushButton:hover { background: #1976D2; }
             """)
             self.lbl.setStyleSheet("color: #1565C0; font-weight: bold;")
 
+
         elif is_using:
-            self.btn.setText("🛍️" if is_takeaway else "")
+
+            self.btn.setText("")
+
+            self.btn.setIcon(qta.icon(
+
+                'fa5s.shopping-bag' if is_takeaway else 'fa5s.chair', color='white'
+
+            ))
             self.btn.setFont(QFont("Segoe UI", 18))
             self.btn.setStyleSheet("""
                 QPushButton {
@@ -102,8 +106,16 @@ class TableCard(QWidget):
             """)
             self.lbl.setStyleSheet("color: #1565C0; font-weight: bold;")
 
+
         else:
-            self.btn.setText("🛍️" if is_takeaway else "")
+
+            self.btn.setText("")
+
+            self.btn.setIcon(qta.icon(
+
+                'fa5s.shopping-bag' if is_takeaway else 'fa5s.chair', color='#90CAF9'
+
+            ))
             self.btn.setFont(QFont("Segoe UI", 18))
             self.btn.setStyleSheet("""
                 QPushButton {
@@ -138,14 +150,20 @@ class OrderItemRow(QWidget):
         row.setSpacing(6)
 
         # Nút xóa
-        btn_del = QPushButton("🗑")
+        btn_del = QPushButton()
+        btn_del.setIcon(qta.icon('fa5s.trash-alt', color='#E53935'))
         btn_del.setFixedSize(26, 26)
-        btn_del.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_del.setStyleSheet("""
-            QPushButton { background: transparent; border: none;
-                          color: #BDBDBD; font-size: 14px; }
-            QPushButton:hover { color: #E53935; }
+            QPushButton {
+                background: #FFEBEE;
+                border: none;
+                border-radius: 13px;
+            }
+            QPushButton:hover {
+                background: #E53935;
+            }
         """)
+        btn_del.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_del.clicked.connect(lambda: on_delete(item))
 
         lbl_idx = QLabel(f"{index}.")
@@ -156,7 +174,7 @@ class OrderItemRow(QWidget):
         if item.size:
             name += f" ({item.size})"
 
-        # ✅ Hiển thị toppings
+        # Hiển thị toppings
         if item.toppings:
             topping_names = ", ".join(t.topping_name for t in item.toppings)
             name += f"\n+ {topping_names}"
@@ -243,28 +261,41 @@ class OrderItemRow(QWidget):
 
     def _refresh_note_style(self):
         has_note = bool(self.item.note)
-        self.note_btn.setText(
-            f"📝  {self.item.note}" if has_note else "✏  Ghi chú món"
-        )
+
         if has_note:
+            self.note_btn.setIcon(qta.icon('fa5s.sticky-note', color='#F57C00'))
+            self.note_btn.setText(f"  {self.item.note}")
             self.note_btn.setStyleSheet("""
                 QPushButton {
-                    background: #E3F2FD; color: #1565C0;
-                    border: 1px solid #90CAF9;
-                    border-radius: 6px; font-size: 11px;
-                    text-align: left; padding-left: 8px;
+                    background: #FFF3E0;
+                    color: #E65100;
+                    border: 1.5px solid #FFCC80;
+                    border-radius: 6px;
+                    font-size: 11px;
+                    text-align: left;
+                    padding-left: 8px;
                     font-weight: bold;
                 }
-                QPushButton:hover { background: #BBDEFB; }
+                QPushButton:hover { background: #FFE0B2; border-color: #F57C00; }
             """)
         else:
+            self.note_btn.setIcon(qta.icon('fa5.edit', color='#90A4AE'))
+            self.note_btn.setText("  Ghi chú món")
             self.note_btn.setStyleSheet("""
                 QPushButton {
-                    background: #F0F4FA; color: #90A4AE;
-                    border: none; border-radius: 6px;
-                    font-size: 11px; text-align: left; padding-left: 8px;
+                    background: #F0F4FA;
+                    color: #90A4AE;
+                    border: 1px dashed #CFD8DC;
+                    border-radius: 6px;
+                    font-size: 11px;
+                    text-align: left;
+                    padding-left: 8px;
                 }
-                QPushButton:hover { background: #E3EAF5; color: #607D8B; }
+                QPushButton:hover {
+                    background: #E8F5E9;
+                    color: #388E3C;
+                    border: 1px dashed #A5D6A7;
+                }
             """)
 
     def _on_minus(self):
@@ -374,19 +405,24 @@ class RichOrderPanel(QWidget):
         h.setContentsMargins(12, 0, 12, 0)
         h.setSpacing(8)
 
-        self.table_label = QLabel("🏠  Chưa chọn bàn")
+        self.table_label = QLabel("  Chưa chọn bàn")
+        icon_table = qta.icon('fa5s.home', color='white')
+        home_icon = QLabel()
+        home_icon.setPixmap(icon_table.pixmap(16, 16))
         self.table_label.setStyleSheet("color: white; font-size: 13px; font-weight: bold;")
 
-        cart_btn = QPushButton("🛒")
+        cart_btn = QPushButton()
+        cart_btn.setIcon(qta.icon('fa5s.shopping-cart', color='white'))
         cart_btn.setFixedSize(32, 32)
         cart_btn.setStyleSheet("""
             QPushButton {
                 background: rgba(255,255,255,0.2); border: none;
-                border-radius: 16px; color: white; font-size: 16px;
+                border-radius: 16px;
             }
             QPushButton:hover { background: rgba(255,255,255,0.35); }
         """)
 
+        h.addWidget(home_icon)
         h.addWidget(self.table_label, 1)
         h.addWidget(cart_btn)
         layout.addWidget(header)
@@ -400,7 +436,7 @@ class RichOrderPanel(QWidget):
         ch.setSpacing(0)
         for text, stretch, width in [
             ("Món", 1, 0),
-            ("SL", 0, 28),
+            ("SL", 0, 70),
             ("Đơn giá", 0, 65),
             ("T.Tiền", 0, 65),
         ]:
@@ -411,7 +447,7 @@ class RichOrderPanel(QWidget):
                 ch.addWidget(lbl, 1)
             else:
                 lbl.setFixedWidth(width)
-                lbl.setAlignment(Qt.AlignmentFlag.AlignRight)
+                lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
                 ch.addWidget(lbl)
         layout.addWidget(col_hdr)
 
@@ -440,8 +476,11 @@ class RichOrderPanel(QWidget):
         ab.setContentsMargins(10, 6, 10, 6)
         ab.setSpacing(8)
 
-        self.btn_transfer = QPushButton("🔄  Chuyển bàn")
-        self.btn_merge = QPushButton("🔀  Gộp bàn")
+        self.btn_transfer = QPushButton("  Chuyển bàn")
+        self.btn_transfer.setIcon(qta.icon('fa5s.sync-alt', color='white'))
+
+        self.btn_merge = QPushButton("  Gộp bàn")
+        self.btn_merge.setIcon(qta.icon('fa5s.random', color='white'))
 
         for btn, color in [
             (self.btn_transfer, "#F57C00"),
@@ -468,7 +507,8 @@ class RichOrderPanel(QWidget):
         tb = QHBoxLayout(total_bar)
         tb.setContentsMargins(14, 0, 14, 0)
 
-        gift = QLabel("🎁")
+        gift = QLabel()
+        gift.setPixmap(qta.icon('fa5s.gift', color='#1565C0').pixmap(16, 16))
         gift.setStyleSheet("font-size: 16px;")
         lbl_tong = QLabel("Tổng tiền")
         lbl_tong.setStyleSheet("color: #555; font-size: 13px; font-weight: bold;")
@@ -502,9 +542,14 @@ class RichOrderPanel(QWidget):
         bb.setContentsMargins(10, 8, 10, 8)
         bb.setSpacing(8)
 
-        self.btn_print = QPushButton("🖨  In tạm tính")
-        self.btn_notify = QPushButton("🔔  Thông báo")
-        self.btn_pay = QPushButton("💳  Thanh toán")
+        self.btn_print = QPushButton("  In tạm tính")
+        self.btn_print.setIcon(qta.icon('fa5s.print', color='white'))
+
+        self.btn_notify = QPushButton("  Thông báo")
+        self.btn_notify.setIcon(qta.icon('fa5s.bell', color='white'))
+
+        self.btn_pay = QPushButton("  Thanh toán")
+        self.btn_pay.setIcon(qta.icon('fa5s.credit-card', color='white'))
 
         styles = [
             ("background: #607D8B;", self.btn_print),
@@ -527,7 +572,7 @@ class RichOrderPanel(QWidget):
     def load_order(self, order, table_name=""):
         self.order = order
         if table_name:
-            self.table_label.setText(f"🏠  {table_name}")
+            self.table_label.setText(f" {table_name}")
 
         while self.items_layout.count() > 1:
             item = self.items_layout.takeAt(0)
@@ -552,11 +597,9 @@ class RichOrderPanel(QWidget):
         self.lbl_total.setText(f"{order.subtotal:,}₫")
 
     def set_notify_state(self, state: str):
-        """
-        state: 'default' | 'sent' | 'pending'
-        """
         if state == "sent":
-            self.btn_notify.setText("✅  Đã thông báo")
+            self.btn_notify.setText("  Đã thông báo")
+            self.btn_notify.setIcon(qta.icon('fa5s.check-circle', color='white'))
             self.btn_notify.setStyleSheet("""
                 QPushButton {
                     background: #2E7D32; color: white;
@@ -566,7 +609,8 @@ class RichOrderPanel(QWidget):
                 QPushButton:hover { background: #388E3C; }
             """)
         elif state == "pending":
-            self.btn_notify.setText("🔔  Gửi bếp (mới)")
+            self.btn_notify.setText("  Gửi bếp (mới)")
+            self.btn_notify.setIcon(qta.icon('fa5s.bell', color='white'))
             self.btn_notify.setStyleSheet("""
                 QPushButton {
                     background: #E65100; color: white;
@@ -576,7 +620,8 @@ class RichOrderPanel(QWidget):
                 QPushButton:hover { background: #BF360C; }
             """)
         else:
-            self.btn_notify.setText("🔔  Thông báo")
+            self.btn_notify.setText("  Thông báo")
+            self.btn_notify.setIcon(qta.icon('fa5s.bell', color='white'))
             self.btn_notify.setStyleSheet("""
                 QPushButton {
                     background: #1565C0; color: white;
@@ -655,16 +700,18 @@ class PosScreen(QWidget):
         layout.setContentsMargins(12, 0, 16, 0)
         layout.setSpacing(4)
 
-        self.btn_tab_table = self._make_tab_btn("🏠  Phòng bàn", True)
-        self.btn_tab_menu = self._make_tab_btn("📋  Thực đơn", False)
+        # Tabs
+        self.btn_tab_table = self._make_tab_btn("Phòng bàn", 'fa5s.home', True)
+        self.btn_tab_menu = self._make_tab_btn("Thực đơn", 'fa5s.clipboard-list', False)
         self.btn_tab_table.clicked.connect(self._show_table_view)
         self.btn_tab_menu.clicked.connect(self._show_menu_view)
 
         layout.addWidget(self.btn_tab_table)
         layout.addWidget(self.btn_tab_menu)
 
+        # Tạo search_box TRƯỚC khi addAction
         self.search_box = QLineEdit()
-        self.search_box.setPlaceholderText("🔍  Tìm món (F3)")
+        self.search_box.setPlaceholderText("Tìm món (F3)")
         self.search_box.setFixedSize(240, 34)
         self.search_box.setStyleSheet("""
             QLineEdit {
@@ -678,38 +725,43 @@ class PosScreen(QWidget):
                 border: 1.5px solid white;
             }
         """)
+        self.search_box.addAction(
+            qta.icon('fa5s.search', color='white'),
+            QLineEdit.ActionPosition.LeadingPosition
+        )
         self.search_box.textChanged.connect(self._on_search)
         layout.addWidget(self.search_box)
         layout.addStretch()
 
-        # Thay đoạn cuối _build_topbar từ chỗ user_lbl trở đi:
-
+        # User label
         name = self.user.full_name if self.user else "Admin"
-        user_lbl = QLabel(f"👤  {name}")
+        user_icon = QLabel()
+        user_icon.setPixmap(qta.icon('fa5s.user-circle', color='white').pixmap(18, 18))
+        user_lbl = QLabel(f"  {name}")
         user_lbl.setStyleSheet("color: white; font-size: 13px; font-weight: bold;")
+        layout.addWidget(user_icon)
         layout.addWidget(user_lbl)
 
-        # ✅ THÊM NÚT MENU 3 GẠCH
-        self.menu_btn = QPushButton("☰")
+        # Nút menu 3 gạch
+        self.menu_btn = QPushButton()
+        self.menu_btn.setIcon(qta.icon('fa5s.bars', color='white'))
         self.menu_btn.setFixedSize(36, 36)
         self.menu_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.menu_btn.setStyleSheet("""
             QPushButton {
                 background: rgba(255,255,255,0.15);
-                color: white;
                 border: none;
                 border-radius: 8px;
-                font-size: 18px;
-                font-weight: bold;
             }
             QPushButton:hover { background: rgba(255,255,255,0.3); }
         """)
         self.menu_btn.clicked.connect(self._show_staff_menu)
         layout.addWidget(self.menu_btn)
-        return bar
 
-    def _make_tab_btn(self, text, active) -> QPushButton:
-        btn = QPushButton(text)
+        return bar
+    def _make_tab_btn(self, text, icon_name, active) -> QPushButton:
+        btn = QPushButton(f"  {text}")
+        btn.setIcon(qta.icon(icon_name, color='#1565C0' if active else 'white'))
         btn.setFixedHeight(36)
         btn.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -792,9 +844,8 @@ class PosScreen(QWidget):
         self.grid_container.setStyleSheet("background: transparent;")
         self.table_grid = QGridLayout(self.grid_container)
         self.table_grid.setSpacing(8)
-        # Không setAlignment — để tự fill
 
-        layout.addWidget(self.grid_container, 1)  # ✅ stretch=1 fill hết chiều cao
+        layout.addWidget(self.grid_container, 1)
 
         layout.addWidget(self.grid_container, 1)
 
@@ -921,89 +972,98 @@ class PosScreen(QWidget):
             self._render_table_grid()
 
     # ── CATEGORY BAR ──────────────────────────────────────────
+    # ── CATEGORY BAR ──────────────────────────────────────────
     def _load_categories(self):
-        # Xóa buttons cũ
         while self.category_layout.count():
             item = self.category_layout.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
 
-        # Reset về Tất cả
         self.selected_category = None
         self.cat_buttons = {}
 
         icons = {
-            "Cà phê": "☕",
-            "Trà sữa": "🧋",
-            "Trà": "🍵",
-            "Latte và Sữa": "🥛",
-            "Nước ép": "🍹",
-            "Sữa chua": "🍦",
-            "Nước giải khát": "🥤",
-            "Sinh tố": "🍓",
-            "Topping": "✨",
+            "Cà phê": ("fa5s.coffee", "#6D4C41"),  # nâu cà phê
+            "Trà sữa": ("fa5s.glass-whiskey", "#8E24AA"),  # tím trà sữa
+            "Trà": ("fa5s.mug-hot", "#2E7D32"),  # xanh lá trà
+            "Latte và Sữa": ("fa5s.glass-whiskey", "#1565C0"),  # xanh dương sữa
+            "Nước ép": ("fa5s.cocktail", "#F57C00"),  # cam nước ép
+            "Sữa chua": ("fa5s.ice-cream", "#E91E63"),  # hồng sữa chua
+            "Nước giải khát": ("fa5s.glass-whiskey", "#00838F"),  # teal
+            "Sinh tố": ("fa5s.apple-alt", "#C62828"),  # đỏ sinh tố
+            "Topping": ("fa5s.star", "#F9A825"),  # vàng topping
         }
 
-        # Nút Tất cả — active mặc định
-        btn_all = self._make_cat_btn("Tất cả", None, active=True)
+        btn_all = self._make_cat_btn("Tất cả", None, "fa5s.th-large", "#1565C0", active=True)
         self.category_layout.addWidget(btn_all)
         self.cat_buttons[None] = btn_all
 
-        # Load từ DB
         from models.category import Category
         cats = self.session.query(Category).order_by(Category.name).all()
         for cat in cats:
-            icon = icons.get(cat.name, "🍴")
-            btn = self._make_cat_btn(f"{icon} {cat.name}", cat.id, active=False)
+            icon_name, icon_color = icons.get(cat.name, ("fa5s.utensils", "#607D8B"))
+            btn = self._make_cat_btn(cat.name, cat.id, icon_name, icon_color, active=False)
             self.category_layout.addWidget(btn)
             self.cat_buttons[cat.id] = btn
 
         self.category_layout.addStretch()
 
-    def _make_cat_btn(self, text, cat_id, active=False) -> QPushButton:
-        btn = QPushButton(text)
+    def _make_cat_btn(self, text, cat_id, icon_name=None, icon_color="#555", active=False) -> QPushButton:
+        btn = QPushButton(f"  {text}")
+        if icon_name:
+            # Khi active: icon trắng (trên nền màu), khi inactive: icon màu riêng
+            btn.setIcon(qta.icon(icon_name, color='white' if active else icon_color))
+            btn.setProperty("icon_name", icon_name)
+            btn.setProperty("icon_color", icon_color)
         btn.setFixedHeight(36)
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._set_cat_style(btn, active)
+        self._set_cat_style(btn, active, icon_color)
         btn.clicked.connect(
             lambda checked, cid=cat_id, b=btn: self._on_cat_click(cid, b)
         )
         return btn
 
-    def _set_cat_style(self, btn, active: bool):
+    def _set_cat_style(self, btn, active: bool, icon_color: str = "#555"):
         if active:
-            btn.setStyleSheet("""
-                QPushButton {
-                    background: #1565C0; color: white;
-                    border: none; border-radius: 18px;
-                    font-size: 12px; font-weight: bold;
+            # Nền màu riêng của từng category (dùng icon_color làm nền)
+            btn.setStyleSheet(f"""
+                QPushButton {{
+                    background: {icon_color};
+                    color: white;
+                    border: none;
+                    border-radius: 18px;
+                    font-size: 12px;
+                    font-weight: bold;
                     padding: 0 16px;
-                }
+                }}
             """)
         else:
-            btn.setStyleSheet("""
-                QPushButton {
-                    background: white; color: #555;
-                    border: 1.5px solid #D0DCF0;
+            btn.setStyleSheet(f"""
+                QPushButton {{
+                    background: white;
+                    color: {icon_color};
+                    border: 1.5px solid {icon_color}40;
                     border-radius: 18px;
-                    font-size: 12px; padding: 0 14px;
-                }
-                QPushButton:hover {
-                    background: #EBF5FF;
-                    border: 1.5px solid #1565C0;
-                    color: #1565C0;
-                }
+                    font-size: 12px;
+                    padding: 0 14px;
+                    font-weight: bold;
+                }}
+                QPushButton:hover {{
+                    background: {icon_color}18;
+                    border: 1.5px solid {icon_color};
+                }}
             """)
 
     def _on_cat_click(self, cat_id, clicked_btn):
-        # ✅ Cập nhật selected_category
         self.selected_category = cat_id
-        # Cập nhật style tất cả buttons
         for cid, btn in self.cat_buttons.items():
-            self._set_cat_style(btn, cid == cat_id)
-        # Load lại products theo category
+            is_active = (cid == cat_id)
+            icon_color = btn.property("icon_color") or "#555"
+            self._set_cat_style(btn, is_active, icon_color)
+            icon_name = btn.property("icon_name")
+            if icon_name:
+                btn.setIcon(qta.icon(icon_name, color='white' if is_active else icon_color))
         self._load_product_grid()
-
     # ── TABLES ────────────────────────────────────────────────
     def _load_tables(self):
         self.all_tables = self.table_repo.get_all()
@@ -1067,7 +1127,7 @@ class PosScreen(QWidget):
             col = idx % COLS
             self.table_grid.addWidget(card, row, col)
 
-        # ✅ Stretch đều tất cả cột và hàng
+        # Stretch đều tất cả cột và hàng
         for col in range(COLS):
             self.table_grid.setColumnStretch(col, 1)
         for row in range(ROWS):
@@ -1095,7 +1155,7 @@ class PosScreen(QWidget):
             if item.widget():
                 item.widget().deleteLater()
 
-        # ✅ Filter theo keyword → category → tất cả
+        # Filter theo keyword → category → tất cả
         if keyword:
             products = self.product_repo.search(keyword)
         elif self.selected_category is not None:
@@ -1169,6 +1229,7 @@ class PosScreen(QWidget):
         # Hiện filter bàn, ẩn category bar
         self.filter_widget.setVisible(True)
         self.category_scroll.setVisible(False)
+        self.pagination_bar.setVisible(True)
 
         self.btn_tab_table.setStyleSheet("""
             QPushButton {
@@ -1214,7 +1275,7 @@ class PosScreen(QWidget):
             QPushButton:hover { background: rgba(255,255,255,0.15); color: white; }
         """)
 
-        # ✅ Load categories + reset về Tất cả
+        # Load categories + reset về Tất cả
         self._load_categories()
         self._load_product_grid()
 
@@ -1246,13 +1307,13 @@ class PosScreen(QWidget):
             if dialog.exec():
                 result = dialog.get_result()
                 size_name = result["size"].size if result["size"] else ""
-                selected_toppings = result.get("toppings", [])  # ✅ list các Topping object
+                selected_toppings = result.get("toppings", [])  #  list các Topping object
 
                 self.order_controller.add_product(
                     self.current_order,
                     product.id,
                     size=size_name,
-                    toppings=selected_toppings,  # ✅ truyền topping
+                    toppings=selected_toppings,  # truyền topping
                 )
         else:
             self.order_controller.add_product(
@@ -1503,13 +1564,13 @@ class PosScreen(QWidget):
         header_l.setContentsMargins(12, 10, 12, 10)
         header_l.setSpacing(10)
 
-        avatar = QLabel("👤")
+        avatar = QLabel()
+        avatar.setPixmap(qta.icon('fa5s.user', color='white').pixmap(18, 18))
         avatar.setFixedSize(40, 40)
         avatar.setAlignment(Qt.AlignmentFlag.AlignCenter)
         avatar.setStyleSheet("""
             background: #1565C0;
             border-radius: 20px;
-            font-size: 18px;
         """)
 
         info = QVBoxLayout()
@@ -1518,10 +1579,17 @@ class PosScreen(QWidget):
         lbl_name.setStyleSheet(
             "font-weight: bold; font-size: 13px; color: #1E2D3D;"
         )
-        lbl_role = QLabel(f"🟢  {self.user.role.value if self.user else 'STAFF'}")
+        role_row = QHBoxLayout()
+        role_row.setSpacing(4)
+        dot_icon = QLabel()
+        dot_icon.setPixmap(qta.icon('fa5s.circle', color='#2E7D32').pixmap(8, 8))
+        lbl_role = QLabel(self.user.role.value if self.user else 'STAFF')
         lbl_role.setStyleSheet("font-size: 11px; color: #888;")
+        role_row.addWidget(dot_icon)
+        role_row.addWidget(lbl_role)
+
         info.addWidget(lbl_name)
-        info.addWidget(lbl_role)
+        info.addLayout(role_row)
 
         header_l.addWidget(avatar)
         header_l.addLayout(info)
@@ -1530,21 +1598,21 @@ class PosScreen(QWidget):
         menu.addSeparator()
 
         # ── Các tùy chọn ──────────────────────────────────────────
-        act_info = QAction("👤  Thông tin tài khoản", self)
+        act_info = QAction(qta.icon('fa5s.user', color='#1565C0'), "  Thông tin tài khoản", self)
         act_info.triggered.connect(self._show_account_info)
         menu.addAction(act_info)
 
-        act_pwd = QAction("🔒  Đổi mật khẩu", self)
+        act_pwd = QAction(qta.icon('fa5s.lock', color='#1565C0'), "  Đổi mật khẩu", self)
         act_pwd.triggered.connect(self._show_change_password)
         menu.addAction(act_pwd)
 
-        act_history = QAction("🕐  Lịch sử ca làm việc", self)
+        act_history = QAction(qta.icon('fa5s.history', color='#1565C0'), "  Lịch sử ca làm việc", self)
         act_history.triggered.connect(self._show_shift_history)
         menu.addAction(act_history)
 
         menu.addSeparator()
 
-        act_logout = QAction("🚪  Đăng xuất", self)
+        act_logout = QAction(qta.icon('fa5s.sign-out-alt', color='#E53935'), "  Đăng xuất", self)
         act_logout.triggered.connect(self._on_logout)
         act_logout.setFont(QFont("Segoe UI", 11))
         menu.addAction(act_logout)
@@ -1573,9 +1641,9 @@ class PosScreen(QWidget):
         header.setStyleSheet("background: #1565C0; border-radius: 0px;")
         h = QVBoxLayout(header)
         h.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        lbl_av = QLabel("👤")
+        lbl_av = QLabel()
+        lbl_av.setPixmap(qta.icon('fa5s.user', color='white').pixmap(30, 30))
         lbl_av.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        lbl_av.setStyleSheet("font-size: 30px;")
         h.addWidget(lbl_av)
         layout.addWidget(header)
 
@@ -1590,7 +1658,7 @@ class PosScreen(QWidget):
             ("Họ và tên", self.user.full_name if self.user else "—"),
             ("Tên đăng nhập", self.user.username if self.user else "—"),
             ("Vai trò", self.user.role.value if self.user else "—"),
-            ("Trạng thái", "🟢 Đang hoạt động"),
+            ("Trạng thái", " Đang hoạt động"),
         ]:
             row = QHBoxLayout()
             lbl_k = QLabel(label + ":")
@@ -1645,10 +1713,13 @@ class PosScreen(QWidget):
             QLineEdit:focus { border: 1.5px solid #1565C0; }
         """
 
-        lbl_title = QLabel("🔒  Đổi mật khẩu")
-        lbl_title.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
-        lbl_title.setStyleSheet("color: #1565C0;")
-        layout.addWidget(lbl_title)
+        lbl_title = QLabel("  Đổi mật khẩu")
+        icon_lock = QLabel()
+        icon_lock.setPixmap(qta.icon('fa5s.lock', color='#1565C0').pixmap(18, 18))
+        title_row = QHBoxLayout()
+        title_row.addWidget(icon_lock)
+        title_row.addWidget(lbl_title)
+        layout.addLayout(title_row)
 
         lbl_old = QLabel("Mật khẩu hiện tại:")
         lbl_old.setStyleSheet("color: #555; font-size: 12px; font-weight: bold;")
@@ -1709,7 +1780,8 @@ class PosScreen(QWidget):
             QMessageBox.information(d, "Thành công", "Đổi mật khẩu thành công!")
             d.accept()
 
-        btn_save = QPushButton("💾  Lưu mật khẩu mới")
+        btn_save = QPushButton("  Lưu mật khẩu mới")
+        btn_save.setIcon(qta.icon('fa5s.save', color='white'))
         btn_save.setFixedHeight(40)
         btn_save.setStyleSheet("""
             QPushButton {
@@ -1745,10 +1817,13 @@ class PosScreen(QWidget):
         layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(10)
 
-        lbl_title = QLabel("🕐  Lịch sử đơn hàng của bạn")
-        lbl_title.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
-        lbl_title.setStyleSheet("color: #1565C0;")
-        layout.addWidget(lbl_title)
+        lbl_title = QLabel("  Lịch sử đơn hàng của bạn")
+        icon_history = QLabel()
+        icon_history.setPixmap(qta.icon('fa5s.history', color='#1565C0').pixmap(18, 18))
+        title_row = QHBoxLayout()
+        title_row.addWidget(icon_history)
+        title_row.addWidget(lbl_title)
+        layout.addLayout(title_row)
 
         # Lấy orders của user này
         orders = (
@@ -1788,9 +1863,9 @@ class PosScreen(QWidget):
         table.setRowCount(len(orders))
 
         status_map = {
-            "ACTIVE": ("🟡 Đang mở", "#F57F17"),
-            "PAID": ("✅ Đã thanh toán", "#2E7D32"),
-            "CANCELLED": ("❌ Đã hủy", "#E53935"),
+            "ACTIVE": (" Đang mở", "#F57F17"),
+            "PAID": (" Đã thanh toán", "#2E7D32"),
+            "CANCELLED": (" Đã hủy", "#E53935"),
         }
 
         for row, (order, payment) in enumerate(orders):

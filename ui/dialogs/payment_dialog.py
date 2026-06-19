@@ -6,6 +6,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QFont
+import qtawesome as qta
 
 
 class PaymentDialog(QDialog):
@@ -37,8 +38,8 @@ class PaymentDialog(QDialog):
         h = QHBoxLayout(header)
         h.setContentsMargins(16, 0, 16, 0)
 
-        icon = QLabel("💳")
-        icon.setStyleSheet("font-size: 22px;")
+        icon = QLabel()
+        icon.setPixmap(qta.icon('fa5s.credit-card', color='white').pixmap(22, 22))
 
         title = QLabel(f"Thanh toán  —  {self.table.name}")
         title.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
@@ -112,7 +113,8 @@ class PaymentDialog(QDialog):
         dw = QHBoxLayout(discount_widget)
         dw.setContentsMargins(12, 8, 12, 8)
 
-        self.chk_discount = QCheckBox("🎁  Giảm giá nhân viên (20%)")
+        self.chk_discount = QCheckBox("  Giảm giá nhân viên (20%)")
+        self.chk_discount.setIcon(qta.icon('fa5s.gift', color='#E65100'))
         self.chk_discount.setStyleSheet("""
             QCheckBox {
                 font-size: 13px; font-weight: bold; color: #E65100;
@@ -147,7 +149,8 @@ class PaymentDialog(QDialog):
         tw = QHBoxLayout(total_widget)
         tw.setContentsMargins(12, 10, 12, 10)
 
-        lbl_total_title = QLabel("💰  Tổng thanh toán:")
+        lbl_total_title = QLabel("  Tổng thanh toán:")
+        icon_total = qta.icon('fa5s.coins', color='#2E7D32')
         lbl_total_title.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
         lbl_total_title.setStyleSheet("color: #2E7D32;")
 
@@ -159,6 +162,12 @@ class PaymentDialog(QDialog):
         tw.addWidget(lbl_total_title, 1)
         tw.addWidget(self.lbl_final)
         body_layout.addWidget(total_widget)
+
+        total_row = QHBoxLayout()
+        icon_lbl = QLabel()
+        icon_lbl.setPixmap(icon_total.pixmap(18, 18))
+        total_row.addWidget(icon_lbl)
+        total_row.addWidget(lbl_total_title)
 
         # ── PHƯƠNG THỨC THANH TOÁN ────────────────────────────
         lbl_method = QLabel("Phương thức thanh toán:")
@@ -174,13 +183,14 @@ class PaymentDialog(QDialog):
         self.method_btns = {}
 
         methods = [
-            ("CASH",     "💵  Tiền mặt"),
-            ("TRANSFER", "🏦  Chuyển khoản"),
-            ("CARD",     "💳  Thẻ"),
+            ("CASH", "  Tiền mặt", 'fa5s.money-bill-wave'),
+            ("TRANSFER", "  Chuyển khoản", 'fa5s.university'),
+            ("CARD", "  Thẻ", 'fa5s.credit-card'),
         ]
 
-        for code, label in methods:
+        for code, label, icon_name in methods:
             btn = QPushButton(label)
+            btn.setIcon(qta.icon(icon_name, color='#1E2D3D'))
             btn.setFixedHeight(40)
             btn.setCheckable(True)
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -269,7 +279,8 @@ class PaymentDialog(QDialog):
         """)
         btn_cancel.clicked.connect(self.reject)
 
-        self.btn_confirm = QPushButton("✅  Xác nhận thanh toán")
+        self.btn_confirm = QPushButton("  Xác nhận thanh toán")
+        self.btn_confirm.setIcon(qta.icon('fa5s.check-circle', color='white'))
         self.btn_confirm.setFixedHeight(40)
         self.btn_confirm.setStyleSheet("""
             QPushButton {
@@ -345,7 +356,7 @@ class PaymentDialog(QDialog):
                     "color: #2E7D32; font-size: 14px; font-weight: bold;"
                 )
             else:
-                self.lbl_change.setText(f"-{abs(change):,}₫  ⚠")
+                self.lbl_change.setText(f"-{abs(change):,}₫")  # bỏ ⚠ text, dùng icon nếu cần
                 self.lbl_change.setStyleSheet(
                     "color: #E53935; font-size: 14px; font-weight: bold;"
                 )
@@ -369,7 +380,8 @@ class PaymentDialog(QDialog):
                 apply_discount=self.apply_discount,
             )
 
-            self.btn_confirm.setText("✅  Thanh toán thành công!")
+            self.btn_confirm.setText("  Thanh toán thành công!")
+            self.btn_confirm.setIcon(qta.icon('fa5s.check-circle', color='white'))
             self.btn_confirm.setEnabled(False)
             QTimer.singleShot(1200, self.accept)
 

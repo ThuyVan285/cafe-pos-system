@@ -8,7 +8,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont
 from models.user import User, Role
-
+import qtawesome as qta
 
 class UserDialog(QDialog):
 
@@ -16,7 +16,7 @@ class UserDialog(QDialog):
         super().__init__(parent)
         self.session = session
         self.user = user
-        self.setWindowTitle("Thêm người dùng" if not user else "Sửa người dùng")
+        title = QLabel("  " + ("Thêm" if not self.user else "Sửa") + " người dùng")
         self.setFixedWidth(380)
         self.setModal(True)
         self.setStyleSheet("background: #F5F8FF;")
@@ -35,7 +35,12 @@ class UserDialog(QDialog):
         header.setStyleSheet("background: #1565C0;")
         h = QHBoxLayout(header)
         h.setContentsMargins(16, 0, 16, 0)
-        title = QLabel("👤  " + ("Thêm" if not self.user else "Sửa") + " người dùng")
+        title = QLabel("  " + ("Thêm" if not self.user else "Sửa") + " người dùng")
+        # Thêm icon riêng vào header row:
+        header_icon = QLabel()
+        header_icon.setPixmap(qta.icon('fa5s.user', color='white').pixmap(18, 18))
+        h.addWidget(header_icon)
+        h.addWidget(title)
         title.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
         title.setStyleSheet("color: white;")
         h.addWidget(title)
@@ -104,7 +109,8 @@ class UserDialog(QDialog):
         """)
         btn_cancel.clicked.connect(self.reject)
 
-        btn_save = QPushButton("💾  Lưu")
+        btn_save = QPushButton("  Lưu")
+        btn_save.setIcon(qta.icon('fa5s.save', color='white'))
         btn_save.setFixedHeight(38)
         btn_save.setStyleSheet("""
             QPushButton {

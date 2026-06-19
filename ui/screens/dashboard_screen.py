@@ -16,10 +16,10 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont, QColor
-
 from database.db import get_session
 from models.user import Role
 
+import qtawesome as qta
 
 # ─────────────────────────────────────────────────────────────
 # STAT CARD
@@ -64,8 +64,9 @@ class StatCard(QWidget):
 # SIDEBAR BUTTON
 # ─────────────────────────────────────────────────────────────
 class SidebarBtn(QPushButton):
-    def __init__(self, icon, label):
-        super().__init__(f"  {icon}  {label}")
+    def __init__(self, icon_name, label):
+        super().__init__(f"  {label}")
+        self.setIcon(qta.icon(icon_name, color='white'))
         self.setFixedHeight(48)
         self.setFont(QFont("Segoe UI", 11))
         self.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -142,9 +143,10 @@ class DashboardScreen(QWidget):
         h = QVBoxLayout(header)
         h.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        lbl_icon = QLabel("☕")
+        lbl_icon = QLabel()
+        lbl_icon.setPixmap(qta.icon('fa5s.coffee', color='white').pixmap(28, 28))
         lbl_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        lbl_icon.setStyleSheet("font-size: 28px;")
+
 
         lbl_name = QLabel(self.user.full_name)
         lbl_name.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -167,19 +169,19 @@ class DashboardScreen(QWidget):
         # Menu items theo role
         if self.user.role == Role.ADMIN:
             menus = [
-                ("📊", "Tổng quan",      0),
-                ("👥", "Người dùng",     1),
-                ("🍹", "Sản phẩm",       2),
-                ("📈", "Báo cáo",        3),
-
+                ("fa5s.chart-pie", "Tổng quan", 0),
+                ("fa5s.users", "Người dùng", 1),
+                ("fa5s.cocktail", "Sản phẩm", 2),
+                ("fa5s.chart-line", "Báo cáo", 3),
             ]
-        else:  # MANAGER
+        else:
             menus = [
-                ("📊", "Tổng quan",      0),
-                ("🍹", "Sản phẩm",       2),
-                ("📈", "Báo cáo",        3),
-                ("🪑", "Hỗ trợ bán hàng", 4),
+                ("fa5s.chart-pie", "Tổng quan", 0),
+                ("fa5s.cocktail", "Sản phẩm", 2),
+                ("fa5s.chart-line", "Báo cáo", 3),
+                ("fa5s.cash-register", "Hỗ trợ bán hàng", 4),
             ]
+
 
         for icon, label, idx in menus:
             btn = SidebarBtn(icon, label)
@@ -192,7 +194,8 @@ class DashboardScreen(QWidget):
         layout.addStretch()
 
         # Logout
-        btn_logout = QPushButton("  🚪  Đăng xuất")
+        btn_logout = QPushButton("  Đăng xuất")
+        btn_logout.setIcon(qta.icon('fa5s.sign-out-alt', color=QColor(255, 255, 255, 200)))
         btn_logout.setFixedHeight(44)
         btn_logout.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_logout.setStyleSheet("""
@@ -217,11 +220,11 @@ class DashboardScreen(QWidget):
     def _switch_tab(self, index, clicked_btn):
         self.stack.setCurrentIndex(index)
         titles = {
-            0: "📊  Tổng quan",
-            1: "👥  Quản lý người dùng",
-            2: "🍹  Quản lý sản phẩm",
-            3: "📈  Báo cáo doanh thu",
-            5: "🪑  Hỗ trợ bán hàng",
+            0: "  Tổng quan",
+            1: "  Quản lý người dùng",
+            2: "  Quản lý sản phẩm",
+            3: "  Báo cáo doanh thu",
+            4: "  Hỗ trợ bán hàng",
         }
         self.header_title.setText(titles.get(index, ""))
         for btn, _ in self.sidebar_btns:
@@ -244,14 +247,15 @@ class DashboardScreen(QWidget):
         hb = QHBoxLayout(self.header_bar)
         hb.setContentsMargins(20, 0, 16, 0)
 
-        self.header_title = QLabel("📊  Tổng quan")
+        self.header_title = QLabel("Tổng quan")
         self.header_title.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
         self.header_title.setStyleSheet("color: #1E2D3D;")
         hb.addWidget(self.header_title)
         hb.addStretch()
 
         # ✅ THÊM NÚT MENU 3 GẠCH
-        self.admin_menu_btn = QPushButton("☰")
+        self.admin_menu_btn = QPushButton()
+        self.admin_menu_btn.setIcon(qta.icon('fa5s.bars', color='#1565C0'))
         self.admin_menu_btn.setFixedSize(38, 38)
         self.admin_menu_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.admin_menu_btn.setStyleSheet("""
@@ -409,7 +413,7 @@ class DashboardScreen(QWidget):
         cards_row.setContentsMargins(0, 0, 0, 0)
         cards_row.setSpacing(12)
 
-        def make_top_card(title, value, sub, color, icon):
+        def make_top_card(title, value, sub, color, icon_name):
             w = QWidget()
 
             w.setMinimumHeight(120)
@@ -428,8 +432,8 @@ class DashboardScreen(QWidget):
 
             top_row = QHBoxLayout()
 
-            lbl_ic = QLabel(icon)
-            lbl_ic.setStyleSheet("font-size: 20px; border: none;")
+            lbl_ic = QLabel()
+            lbl_ic.setPixmap(qta.icon(icon_name, color=color).pixmap(20, 20))
 
             lbl_t = QLabel(title)
             lbl_t.setStyleSheet(
@@ -468,46 +472,19 @@ class DashboardScreen(QWidget):
             "Chưa có dữ liệu"
         )
 
-        cards_row.addWidget(
-            make_top_card(
-                "Doanh thu hôm nay",
-                fmt_rev(today_rev),
-                pct,
-                "#1565C0",
-                "💰"
-            )
-        )
-
-        cards_row.addWidget(
-            make_top_card(
-                "Đơn hôm nay",
-                str(today_count),
-                f"{today_count} đơn thanh toán",
-                "#2E7D32",
-                "📋"
-            )
-        )
-
-        cards_row.addWidget(
-            make_top_card(
-                "Bàn đang phục vụ",
-                f"{using_tables}/{total_tables}",
-                f"{active_orders} đơn đang mở",
-                "#E65100",
-                "🪑"
-            )
-        )
-
-        cards_row.addWidget(
-            make_top_card(
-                "Doanh thu đang phục vụ",
-                fmt_rev(active_rev),
-                f"{active_orders} đơn",
-                "#6A1B9A",
-                "🔄"
-            )
-        )
-
+        cards_row.addWidget(make_top_card(
+            "Doanh thu hôm nay", fmt_rev(today_rev), pct, "#1565C0", "fa5s.coins"
+        ))
+        cards_row.addWidget(make_top_card(
+            "Đơn hôm nay", str(today_count), f"{today_count} đơn thanh toán", "#2E7D32", "fa5s.clipboard-list"
+        ))
+        cards_row.addWidget(make_top_card(
+            "Bàn đang phục vụ", f"{using_tables}/{total_tables}", f"{active_orders} đơn đang mở", "#E65100",
+            "fa5s.chair"
+        ))
+        cards_row.addWidget(make_top_card(
+            "Doanh thu đang phục vụ", fmt_rev(active_rev), f"{active_orders} đơn", "#6A1B9A", "fa5s.sync-alt"
+        ))
         layout.addWidget(cards_widget)
 
         # =========================================================
@@ -706,7 +683,12 @@ class DashboardScreen(QWidget):
         # Header
         feed_header = QHBoxLayout()
 
-        lbl_feed = QLabel("🔔 Hoạt động gần đây")
+        lbl_feed = QLabel("  Hoạt động gần đây")
+        icon_feed = QLabel()
+        icon_feed.setPixmap(qta.icon('fa5s.bell', color='#1E2D3D').pixmap(16, 16))
+        feed_header.addWidget(icon_feed)
+        feed_header.addWidget(lbl_feed)
+
         lbl_feed.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
         lbl_feed.setStyleSheet("color: #1E2D3D;")
 
@@ -761,7 +743,7 @@ class DashboardScreen(QWidget):
             .all()
         )
 
-        icons = ["☕", "🧋", "🍵", "🥤", "🍓", "🧃", "🍦"]
+        feed_icon_pixmap = qta.icon('fa5s.coffee', color='#1565C0').pixmap(16, 16)
 
         # =========================
         # ITEMS
@@ -785,7 +767,11 @@ class DashboardScreen(QWidget):
 
             # ── ICON ─────────────────────────
 
-            icon_lbl = QLabel(icons[idx % len(icons)])
+            icon_lbl = QLabel()
+            icon_lbl.setPixmap(feed_icon_pixmap)
+            icon_lbl.setFixedSize(36, 36)
+            icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            icon_lbl.setStyleSheet("background: #E3F2FD; border-radius: 18px;")
 
             icon_lbl.setFixedSize(36, 36)
 
@@ -957,7 +943,8 @@ class DashboardScreen(QWidget):
 
         pie_layout.setContentsMargins(16, 14, 16, 14)
 
-        lbl_pie = QLabel("Hiệu quả thực đơn")
+        lbl_pie = QLabel("Hiệu quả thực đơn")  # bỏ 🔔 nếu có
+        lbl_top_title = QLabel("Top món bán chạy")
 
         lbl_pie.setFont(
             QFont("Segoe UI", 13, QFont.Weight.Bold)
@@ -1339,6 +1326,7 @@ class DashboardScreen(QWidget):
         self.pie_fig.tight_layout(pad=0.3)
         self.pie_canvas.draw()
     # ── TAB 1: USERS ──────────────────────────────────────────
+
     def _build_users(self) -> QWidget:
         widget = QWidget()
         widget.setStyleSheet("background: #F0F4FA;")
@@ -1349,7 +1337,11 @@ class DashboardScreen(QWidget):
         # Toolbar
         toolbar = QHBoxLayout()
         self.user_search = QLineEdit()
-        self.user_search.setPlaceholderText("🔍  Tìm người dùng...")
+        self.user_search.setPlaceholderText("Tìm người dùng...")
+        self.user_search.addAction(
+            qta.icon('fa5s.search', color='#90A4AE'),
+            QLineEdit.ActionPosition.LeadingPosition
+        )
         self.user_search.setFixedHeight(38)
         self.user_search.setStyleSheet("""
             QLineEdit {
@@ -1360,7 +1352,8 @@ class DashboardScreen(QWidget):
         """)
         self.user_search.textChanged.connect(self._load_users)
 
-        btn_add_user = QPushButton("➕  Thêm người dùng")
+        btn_add_user = QPushButton("  Thêm người dùng")
+        btn_add_user.setIcon(qta.icon('fa5s.plus', color='white'))
         btn_add_user.setFixedHeight(38)
         btn_add_user.setStyleSheet("""
             QPushButton {
@@ -1383,8 +1376,18 @@ class DashboardScreen(QWidget):
             ["ID", "Họ tên", "Username", "Role", "Thao tác"]
         )
         self.user_table.horizontalHeader().setSectionResizeMode(
+            QHeaderView.ResizeMode.Interactive
+        )
+        self.user_table.horizontalHeader().setSectionResizeMode(
             1, QHeaderView.ResizeMode.Stretch
         )
+        self.user_table.horizontalHeader().setSectionResizeMode(
+            4, QHeaderView.ResizeMode.Fixed
+        )
+        self.user_table.setColumnWidth(0, 50)
+        self.user_table.setColumnWidth(2, 150)
+        self.user_table.setColumnWidth(3, 100)
+        self.user_table.setColumnWidth(4, 200)
         self.user_table.setStyleSheet("""
             QTableWidget {
                 background: white; border-radius: 12px;
@@ -1410,6 +1413,24 @@ class DashboardScreen(QWidget):
         self._load_users()
         return widget
 
+        # Dùng chung cho cả _load_users và _load_products
+    def _make_action_btn(self, text, icon_name, color, hover_color) -> QPushButton:
+        btn = QPushButton(f"  {text}")
+        btn.setIcon(qta.icon(icon_name, color='white'))
+        btn.setFixedHeight(32)
+        btn.setMinimumWidth(80)  # ✅ đủ rộng để chữ không bị cắt
+        btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn.setStyleSheet(f"""
+                    QPushButton {{
+                        background: {color}; color: white;
+                        border: none; border-radius: 7px;
+                        font-size: 12px; font-weight: bold;
+                        padding: 0 12px;
+                    }}
+                    QPushButton:hover {{ background: {hover_color}; }}
+                """)
+        return btn
+
     def _load_users(self):
         from repositories.user_repository import UserRepository
         repo = UserRepository(self.session)
@@ -1434,42 +1455,20 @@ class DashboardScreen(QWidget):
             # Thao tác
             btn_widget = QWidget()
             btn_layout = QHBoxLayout(btn_widget)
-            btn_layout.setContentsMargins(4, 2, 4, 2)
-            btn_layout.setSpacing(6)
+            btn_layout.setContentsMargins(6, 4, 6, 4)
+            btn_layout.setSpacing(8)
 
-            btn_edit = QPushButton("✏ Sửa")
-            btn_edit.setFixedHeight(28)
-            btn_edit.setStyleSheet("""
-                QPushButton {
-                    background: #1565C0; color: white;
-                    border: none; border-radius: 6px;
-                    font-size: 11px; padding: 0 10px;
-                }
-                QPushButton:hover { background: #1976D2; }
-            """)
-            btn_edit.clicked.connect(
-                lambda checked, u=user: self._on_edit_user(u)
-            )
+            btn_edit = self._make_action_btn("Sửa", "fa5s.edit", "#1565C0", "#1976D2")
+            btn_edit.clicked.connect(lambda checked, u=user: self._on_edit_user(u))
 
-            btn_del = QPushButton("🗑 Xóa")
-            btn_del.setFixedHeight(28)
-            btn_del.setStyleSheet("""
-                QPushButton {
-                    background: #E53935; color: white;
-                    border: none; border-radius: 6px;
-                    font-size: 11px; padding: 0 10px;
-                }
-                QPushButton:hover { background: #C62828; }
-            """)
-            btn_del.clicked.connect(
-                lambda checked, u=user: self._on_delete_user(u)
-            )
+            btn_del = self._make_action_btn("Xóa", "fa5s.trash-alt", "#E53935", "#C62828")
+            btn_del.clicked.connect(lambda checked, u=user: self._on_delete_user(u))
 
             btn_layout.addWidget(btn_edit)
             btn_layout.addWidget(btn_del)
+            btn_layout.addStretch()
             self.user_table.setCellWidget(row, 4, btn_widget)
-            self.user_table.setRowHeight(row, 44)
-
+            self.user_table.setRowHeight(row, 48)
     def _on_add_user(self):
         from ui.dialogs.user_dialog import UserDialog
         dialog = UserDialog(session=self.session, parent=self)
@@ -1506,7 +1505,11 @@ class DashboardScreen(QWidget):
         # Toolbar
         toolbar = QHBoxLayout()
         self.prod_search = QLineEdit()
-        self.prod_search.setPlaceholderText("🔍  Tìm sản phẩm...")
+        self.prod_search.setPlaceholderText("Tìm sản phẩm...")
+        self.prod_search.addAction(
+            qta.icon('fa5s.search', color='#90A4AE'),
+            QLineEdit.ActionPosition.LeadingPosition
+        )
         self.prod_search.setFixedHeight(38)
         self.prod_search.setStyleSheet("""
             QLineEdit {
@@ -1518,7 +1521,8 @@ class DashboardScreen(QWidget):
         self.prod_search.textChanged.connect(self._load_products)
 
         if self.user.role == Role.ADMIN:
-            btn_add = QPushButton("➕  Thêm sản phẩm")
+            btn_add = QPushButton("  Thêm sản phẩm")
+            btn_add.setIcon(qta.icon('fa5s.plus', color='white'))
             btn_add.setFixedHeight(38)
             btn_add.setStyleSheet("""
                 QPushButton {
@@ -1543,8 +1547,19 @@ class DashboardScreen(QWidget):
             ["ID", "Tên sản phẩm", "Danh mục", "Giá", "Size", "Thao tác"]
         )
         self.prod_table.horizontalHeader().setSectionResizeMode(
+            QHeaderView.ResizeMode.Interactive
+        )
+        self.prod_table.horizontalHeader().setSectionResizeMode(
             1, QHeaderView.ResizeMode.Stretch
         )
+        self.prod_table.horizontalHeader().setSectionResizeMode(
+            5, QHeaderView.ResizeMode.Fixed
+        )
+        self.prod_table.setColumnWidth(0, 50)
+        self.prod_table.setColumnWidth(2, 120)
+        self.prod_table.setColumnWidth(3, 90)
+        self.prod_table.setColumnWidth(4, 70)
+        self.prod_table.setColumnWidth(5, 200)
         self.prod_table.setStyleSheet("""
             QTableWidget {
                 background: white; border-radius: 12px;
@@ -1585,45 +1600,26 @@ class DashboardScreen(QWidget):
             ))
             self.prod_table.setItem(row, 3, QTableWidgetItem(f"{p.base_price:,}₫"))
             self.prod_table.setItem(row, 4, QTableWidgetItem(
-                "✅ Có" if p.has_size else "❌ Không"
+                "Có" if p.has_size else "Không"
             ))
 
             btn_widget = QWidget()
             btn_layout = QHBoxLayout(btn_widget)
-            btn_layout.setContentsMargins(4, 2, 4, 2)
-            btn_layout.setSpacing(6)
+            btn_layout.setContentsMargins(6, 4, 6, 4)
+            btn_layout.setSpacing(8)
 
-            btn_edit = QPushButton("✏ Sửa")
-            btn_edit.setFixedHeight(28)
-            btn_edit.setStyleSheet("""
-                QPushButton {
-                    background: #1565C0; color: white;
-                    border: none; border-radius: 6px;
-                    font-size: 11px; padding: 0 10px;
-                }
-            """)
-            btn_edit.clicked.connect(
-                lambda checked, prod=p: self._on_edit_product(prod)
-            )
+            btn_edit = self._make_action_btn("Sửa", "fa5s.edit", "#1565C0", "#1976D2")
+            btn_edit.clicked.connect(lambda checked, prod=p: self._on_edit_product(prod))
             btn_layout.addWidget(btn_edit)
 
             if self.user.role == Role.ADMIN:
-                btn_del = QPushButton("🗑 Ẩn")
-                btn_del.setFixedHeight(28)
-                btn_del.setStyleSheet("""
-                    QPushButton {
-                        background: #E53935; color: white;
-                        border: none; border-radius: 6px;
-                        font-size: 11px; padding: 0 10px;
-                    }
-                """)
-                btn_del.clicked.connect(
-                    lambda checked, prod=p: self._on_hide_product(prod)
-                )
-                btn_layout.addWidget(btn_del)
+                btn_hide = self._make_action_btn("Ẩn", "fa5s.eye-slash", "#E53935", "#C62828")
+                btn_hide.clicked.connect(lambda checked, prod=p: self._on_hide_product(prod))
+                btn_layout.addWidget(btn_hide)
 
+            btn_layout.addStretch()
             self.prod_table.setCellWidget(row, 5, btn_widget)
-            self.prod_table.setRowHeight(row, 44)
+            self.prod_table.setRowHeight(row, 48)
 
     def _on_add_product(self):
         QMessageBox.information(self, "Thông báo", "Chức năng thêm sản phẩm đang phát triển!")
@@ -1670,6 +1666,8 @@ class DashboardScreen(QWidget):
         layout = QVBoxLayout(widget)
         layout.setContentsMargins(20, 16, 20, 20)
         layout.setSpacing(16)
+
+
 
         # ── STAT CARDS ────────────────────────────────────────────
         today_rev = stat.get_today_revenue()
@@ -1724,7 +1722,7 @@ class DashboardScreen(QWidget):
 
         card_data = [
             {
-                "icon": "📅",
+                "icon": "fa5s.calendar-day",
                 "label": "Hôm nay",
                 "value": fmt_money(today_rev),
                 "trend": trend_today,
@@ -1733,7 +1731,7 @@ class DashboardScreen(QWidget):
                 "bg": "#F1F8E9",
             },
             {
-                "icon": "7️⃣",
+                "icon": "fa5s.calendar-week",
                 "label": "Tuần này",
                 "value": fmt_money(week_rev),
                 "trend": trend_week,
@@ -1742,7 +1740,7 @@ class DashboardScreen(QWidget):
                 "bg": "#E3F2FD",
             },
             {
-                "icon": "📆",
+                "icon": "fa5s.calendar-alt",
                 "label": "Tháng này",
                 "value": fmt_money(month_rev),
                 "trend": f"{datetime.now().strftime('%m/%Y')}",
@@ -1751,7 +1749,7 @@ class DashboardScreen(QWidget):
                 "bg": "#F3E5F5",
             },
             {
-                "icon": "🎯",
+                "icon": "fa5s.bullseye",
                 "label": "Dự đoán ngày mai",
                 "value": fmt_money(pred_rev),
                 "trend": "Moving Average 7 ngày",
@@ -1779,14 +1777,11 @@ class DashboardScreen(QWidget):
             top_row = QHBoxLayout()
             top_row.setSpacing(8)
 
-            icon_badge = QLabel(cd["icon"])
+            icon_badge = QLabel()
+            icon_badge.setPixmap(qta.icon(cd["icon"], color=cd['color']).pixmap(20, 20))
             icon_badge.setFixedSize(36, 36)
             icon_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            icon_badge.setStyleSheet(f"""
-                background: {cd['bg']};
-                border-radius: 10px;
-                font-size: 18px;
-            """)
+            icon_badge.setStyleSheet(f"background: {cd['bg']}; border-radius: 10px;")
 
             lbl_label = QLabel(cd["label"])
             lbl_label.setStyleSheet(
@@ -2079,7 +2074,13 @@ class DashboardScreen(QWidget):
         card_layout.setContentsMargins(20, 16, 20, 16)
         card_layout.setSpacing(12)
 
-        lbl = QLabel("⚙️  Cấu hình hệ thống")
+        lbl = QLabel("  Cấu hình hệ thống")
+        icon_settings = QLabel()
+        icon_settings.setPixmap(qta.icon('fa5s.cog', color='#1E2D3D').pixmap(18, 18))
+        settings_header = QHBoxLayout()
+        settings_header.addWidget(icon_settings)
+        settings_header.addWidget(lbl)
+        card_layout.addLayout(settings_header)
         lbl.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
         lbl.setStyleSheet("color: #1E2D3D;")
         card_layout.addWidget(lbl)
@@ -2175,23 +2176,27 @@ class DashboardScreen(QWidget):
         header_l.setContentsMargins(12, 10, 12, 10)
         header_l.setSpacing(10)
 
-        avatar = QLabel("👑")
+        avatar = QLabel()
+        avatar.setPixmap(qta.icon('fa5s.crown', color='white').pixmap(20, 20))
         avatar.setFixedSize(42, 42)
         avatar.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        avatar.setStyleSheet("""
-            background: #0D47A1;
-            border-radius: 21px;
-            font-size: 20px;
-        """)
+        avatar.setStyleSheet("background: #0D47A1; border-radius: 21px;")
 
         info = QVBoxLayout()
         info.setSpacing(2)
         lbl_name = QLabel(self.user.full_name)
         lbl_name.setStyleSheet("font-weight: bold; font-size: 13px; color: #1E2D3D;")
-        lbl_role = QLabel(f"🔴  {self.user.role.value}  —  Toàn quyền hệ thống")
+        lbl_role = QLabel(f"  {self.user.role.value}  —  Toàn quyền hệ thống")
+        dot_icon = QLabel()
+        dot_icon.setPixmap(qta.icon('fa5s.circle', color='#E53935').pixmap(8, 8))
         lbl_role.setStyleSheet("font-size: 11px; color: #888;")
         info.addWidget(lbl_name)
-        info.addWidget(lbl_role)
+        role_row = QHBoxLayout()
+        role_row.setSpacing(4)
+        role_row.addWidget(dot_icon)
+        role_row.addWidget(lbl_role)
+        info.addWidget(lbl_name)
+        info.addLayout(role_row)
 
         header_l.addWidget(avatar)
         header_l.addLayout(info)
@@ -2200,28 +2205,28 @@ class DashboardScreen(QWidget):
         menu.addSeparator()
 
         # ── Tài khoản ─────────────────────────────────────────────
-        act_info = QAction("👤  Thông tin tài khoản", self)
+        act_info = QAction(qta.icon('fa5s.user', color='#1565C0'), "  Thông tin tài khoản", self)
         act_info.triggered.connect(self._show_account_info)
         menu.addAction(act_info)
 
-        act_pwd = QAction("🔒  Đổi mật khẩu", self)
+        act_pwd = QAction(qta.icon('fa5s.lock', color='#1565C0'), "  Đổi mật khẩu", self)
         act_pwd.triggered.connect(self._show_change_password)
         menu.addAction(act_pwd)
 
         menu.addSeparator()
 
         # ── Hệ thống ──────────────────────────────────────────────
-        act_sys = QAction("🖥️  Thông tin hệ thống", self)
+        act_sys  = QAction(qta.icon('fa5s.desktop', color='#1565C0'), "  Thông tin hệ thống", self)
         act_sys.triggered.connect(self._show_system_info)
         menu.addAction(act_sys)
 
-        act_export = QAction("📤  Xuất báo cáo Excel", self)
+        act_export = QAction(qta.icon('fa5s.file-export', color='#1565C0'), "  Xuất báo cáo Excel", self)
         act_export.triggered.connect(self._export_report)
         menu.addAction(act_export)
 
         menu.addSeparator()
 
-        act_logout = QAction("🚪  Đăng xuất", self)
+        act_logout = QAction(qta.icon('fa5s.sign-out-alt', color='#E53935'), "  Đăng xuất", self)
         act_logout.triggered.connect(self._on_logout)
         menu.addAction(act_logout)
 
@@ -2248,7 +2253,8 @@ class DashboardScreen(QWidget):
         header.setStyleSheet("background: #0D47A1;")
         h = QVBoxLayout(header)
         h.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        lbl_av = QLabel("👑")
+        lbl_av = QLabel()
+        lbl_av.setPixmap(qta.icon('fa5s.crown', color='white').pixmap(36, 36))
         lbl_av.setAlignment(Qt.AlignmentFlag.AlignCenter)
         lbl_av.setStyleSheet("font-size: 36px;")
         lbl_n = QLabel(self.user.full_name)
@@ -2266,8 +2272,8 @@ class DashboardScreen(QWidget):
 
         for label, value in [
             ("Tên đăng nhập", self.user.username),
-            ("Vai trò", f"👑 {self.user.role.value}"),
-            ("Trạng thái", "🟢 Đang hoạt động"),
+            ("Vai trò", f" {self.user.role.value}"),
+            ("Trạng thái", " Đang hoạt động"),
             ("Quyền hạn", "Toàn quyền hệ thống"),
         ]:
             row = QHBoxLayout()
@@ -2311,7 +2317,14 @@ class DashboardScreen(QWidget):
         layout.setContentsMargins(24, 24, 24, 24)
         layout.setSpacing(12)
 
-        lbl_title = QLabel("🔒  Đổi mật khẩu Admin")
+        # Thay tất cả các dòng có emoji bằng icon thật:
+        lbl_title = QLabel("Đổi mật khẩu Admin")
+        icon_lock = QLabel()
+        icon_lock.setPixmap(qta.icon('fa5s.lock', color='#0D47A1').pixmap(18, 18))
+        title_row = QHBoxLayout()
+        title_row.addWidget(icon_lock)
+        title_row.addWidget(lbl_title)
+        layout.addLayout(title_row)
         lbl_title.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
         lbl_title.setStyleSheet("color: #0D47A1;")
         layout.addWidget(lbl_title)
@@ -2378,10 +2391,11 @@ class DashboardScreen(QWidget):
 
             self.user.password_hash = hashlib.sha256(new.encode()).hexdigest()
             self.session.commit()
-            QMessageBox.information(d, "✅ Thành công", "Đổi mật khẩu thành công!")
+            QMessageBox.information(d, " Thành công", "Đổi mật khẩu thành công!")
             d.accept()
 
-        btn_save = QPushButton("💾  Lưu mật khẩu mới")
+        btn_save = QPushButton("  Lưu mật khẩu mới")
+        btn_save.setIcon(qta.icon('fa5s.save', color='white'))
         btn_save.setFixedHeight(42)
         btn_save.setStyleSheet("""
             QPushButton {
@@ -2416,10 +2430,10 @@ class DashboardScreen(QWidget):
         hdr.setStyleSheet("background: #1565C0;")
         hdr_l = QVBoxLayout(hdr)
         hdr_l.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        lbl_h = QLabel("🖥️  Thông tin hệ thống")
-        lbl_h.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        lbl_h.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
-        lbl_h.setStyleSheet("color: white;")
+        lbl_h = QLabel("  Thông tin hệ thống")
+        icon_sys = QLabel()
+        icon_sys.setPixmap(qta.icon('fa5s.desktop', color='white').pixmap(18, 18))
+        hdr_l.addWidget(icon_sys)
         hdr_l.addWidget(lbl_h)
         layout.addWidget(hdr)
 
@@ -2439,18 +2453,18 @@ class DashboardScreen(QWidget):
         db_info = f"{DB_CONFIG.host}:{DB_CONFIG.port}/{DB_CONFIG.database}"
 
         info_rows = [
-            ("🏷️  Tên ứng dụng", "Cafe POS"),
-            ("📦  Phiên bản", "1.0.0"),
-            ("🐍  Python", "3.11"),
-            ("🗄️  Database", db_info),
-            ("📋  Tổng orders", f"{total_orders:,}"),
-            ("✅  Đã thanh toán", f"{paid_orders:,}"),
-            ("🍹  Sản phẩm", f"{total_products:,}"),
-            ("👥  Người dùng", f"{total_users:,}"),
-            ("🕐  Thời gian hiện tại", datetime.now().strftime("%d/%m/%Y %H:%M:%S")),
+            ("fa5s.tag", "Tên ứng dụng", "Cafe POS"),
+            ("fa5s.box", "Phiên bản", "1.0.0"),
+            ("fa5s.code", "Python", "3.11"),
+            ("fa5s.database", "Database", db_info),
+            ("fa5s.clipboard-list", "Tổng orders", f"{total_orders:,}"),
+            ("fa5s.check-circle", "Đã thanh toán", f"{paid_orders:,}"),
+            ("fa5s.cocktail", "Sản phẩm", f"{total_products:,}"),
+            ("fa5s.users", "Người dùng", f"{total_users:,}"),
+            ("fa5s.clock", "Thời gian hiện tại", datetime.now().strftime("%d/%m/%Y %H:%M:%S")),
         ]
 
-        for label, value in info_rows:
+        for icon_name, label, value in info_rows:
             card = QWidget()
             card.setStyleSheet("""
                 QWidget {
@@ -2461,7 +2475,9 @@ class DashboardScreen(QWidget):
             """)
             card.setFixedHeight(36)
             row = QHBoxLayout(card)
-            row.setContentsMargins(12, 0, 12, 0)
+            icon_lbl = QLabel()
+            icon_lbl.setPixmap(qta.icon(icon_name, color='#1565C0').pixmap(14, 14))
+            row.addWidget(icon_lbl)
             lbl_k = QLabel(label)
             lbl_k.setStyleSheet("color: #888; font-size: 12px; border: none;")
             lbl_k.setFixedWidth(160)
@@ -2522,8 +2538,8 @@ class DashboardScreen(QWidget):
                     f.write(f"{idx},{name},{qty},{revenue}\n")
 
             QMessageBox.information(
-                self, "✅ Xuất thành công",
+                self, " Xuất thành công",
                 f"Đã xuất báo cáo ra:\n{file_path}"
             )
         except Exception as e:
-            QMessageBox.critical(self, "❌ Lỗi", f"Không thể xuất file:\n{str(e)}")
+            QMessageBox.critical(self, " Lỗi", f"Không thể xuất file:\n{str(e)}")

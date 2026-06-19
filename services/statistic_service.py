@@ -154,29 +154,31 @@ class StatisticService:
         return result
 
     def get_revenue_by_weekday(self):
-        from models.order import Order, OrderStatus
         from models.payment import Payment
+        from datetime import datetime, timedelta
         from sqlalchemy import func
 
-        day_names = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN']
-        results = (
-            self._session.query(
-                func.dayofweek(Order.created_at).label('dow'),
-                func.sum(Payment.total_amount).label('revenue')
-            )
-            .join(Payment, Payment.order_id == Order.id)
-            .filter(Order.status == OrderStatus.PAID)
-            .group_by(func.dayofweek(Order.created_at))
-            .all()
-        )
+        today = datetime.now().date()
+        weekday_today = today.weekday()
+        monday = today - timedelta(days=weekday_today)
 
-        dow_map = {2: 0, 3: 1, 4: 2, 5: 3, 6: 4, 7: 5, 1: 6}
-        values = [0] * 7
-        for r in results:
-            idx = dow_map.get(int(r.dow), -1)
-            if idx >= 0:
-                values[idx] = int(r.revenue or 0)
-        return list(zip(day_names, values))
+        day_names = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN']
+        result = []
+
+        for i in range(weekday_today + 1):
+            d = monday + timedelta(days=i)
+            rev = (
+                    self._session.query(func.sum(Payment.total_amount))
+                    .join(Order, Payment.order_id == Order.id)
+                    .filter(
+                        Order.status == OrderStatus.PAID,
+                        func.date(Order.created_at) == d
+                    )
+                    .scalar() or 0
+            )
+            result.append((day_names[i], int(rev)))
+
+        return result
 
     def get_today_revenue(self) -> int:
         from models.order import Order, OrderStatus
@@ -268,20 +270,29 @@ class StatisticService:
         return [(str(r.date), int(r.count)) for r in results]
 
     def get_customers_by_weekday(self) -> list:
+        from datetime import datetime, timedelta
         from sqlalchemy import func
-        results = (
-            self._session.query(
-                func.dayofweek(Order.created_at).label('dow'),
-                func.count(Order.id).label('count')
-            )
-            .filter(Order.status == OrderStatus.PAID)
-            .group_by(func.dayofweek(Order.created_at))
-            .order_by(func.dayofweek(Order.created_at))
-            .all()
-        )
-        days_map = {1: "CN", 2: "T2", 3: "T3", 4: "T4", 5: "T5", 6: "T6", 7: "T7"}
-        return [(days_map.get(int(r.dow), str(r.dow)), int(r.count)) for r in results]
 
+        today = datetime.now().date()
+        weekday_today = today.weekday()
+        monday = today - timedelta(days=weekday_today)
+
+        day_names = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN']
+        result = []
+
+        for i in range(weekday_today + 1):
+            d = monday + timedelta(days=i)
+            count = (
+                    self._session.query(func.count(Order.id))
+                    .filter(
+                        Order.status == OrderStatus.PAID,
+                        func.date(Order.created_at) == d
+                    )
+                    .scalar() or 0
+            )
+            result.append((day_names[i], int(count)))
+
+        return result
     def get_revenue_by_category(self) -> list:
         """Doanh thu theo từng danh mục — dùng cho pie chart"""
         from models.order_item import OrderItem
