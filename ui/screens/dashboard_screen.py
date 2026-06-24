@@ -253,7 +253,6 @@ class DashboardScreen(QWidget):
         hb.addWidget(self.header_title)
         hb.addStretch()
 
-        # ✅ THÊM NÚT MENU 3 GẠCH
         self.admin_menu_btn = QPushButton()
         self.admin_menu_btn.setIcon(qta.icon('fa5s.bars', color='#1565C0'))
         self.admin_menu_btn.setFixedSize(38, 38)
@@ -277,7 +276,6 @@ class DashboardScreen(QWidget):
 
         layout.addWidget(self.header_bar)
 
-        # Stack giữ nguyên...
         self.stack = QStackedWidget()
         self.stack.addWidget(self._build_overview())
         self.stack.addWidget(self._build_users())

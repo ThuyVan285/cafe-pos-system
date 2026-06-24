@@ -47,10 +47,7 @@ class LoginDialog(QDialog):
 
         self.build_ui()
 
-    # =========================================================
     # UI
-    # =========================================================
-
     def build_ui(self):
         root = QVBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
@@ -162,7 +159,6 @@ class LoginDialog(QDialog):
         fl.addWidget(chk_show)
         fl.addSpacing(14)
 
-        # Error label — dùng container cố định để không bị nhảy layout
         self.error_container = QWidget()
         self.error_container.setFixedHeight(0)  # ẩn = height 0
         self.error_container.setStyleSheet("background: transparent;")
@@ -220,9 +216,7 @@ class LoginDialog(QDialog):
         fl.addWidget(footer)
 
         root.addWidget(body)
-    # =========================================================
     # STYLE
-    # =========================================================
 
     def label_style(self):
 
@@ -331,10 +325,7 @@ class LoginDialog(QDialog):
             self.btn_login.setEnabled(True)
 
             session.close()
-
-    # =========================================================
     # ERROR
-    # =========================================================
 
     def show_error(self, text: str):
         self.lbl_error.setText(f"⚠  {text}")
@@ -344,9 +335,7 @@ class LoginDialog(QDialog):
         self.lbl_error.setText("")
         self.error_container.setFixedHeight(0)  # ẩn = height 0
 
-    # =========================================================
     # FORGOT PASSWORD
-    # =========================================================
 
     def _forgot_password(self):
 

@@ -37,8 +37,6 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow
     )
-
-    # ✅ QUAN TRỌNG: dùng string "Order", KHÔNG import class Order trực tiếp
     orders = relationship("Order", back_populates="user")
 
     def verify_password(self, password: str) -> bool:

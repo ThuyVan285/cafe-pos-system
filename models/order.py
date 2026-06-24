@@ -52,7 +52,6 @@ class Order(Base):
 
     table = relationship("CafeTable", back_populates="orders")
 
-    # ✅ QUAN TRỌNG: dùng string "User", KHÔNG import class User trực tiếp
     user = relationship("User", back_populates="orders")
 
     payment = relationship(

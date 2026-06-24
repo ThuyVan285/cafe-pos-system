@@ -5,7 +5,6 @@ from database.init_db import init_database
 from ui.main_window import MainWindow
 from ui.dialogs.login_dialog import LoginDialog
 
-# Giữ reference toàn cục để tránh garbage collection
 _current_window = None
 
 

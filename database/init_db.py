@@ -24,7 +24,6 @@ def hash_password(password: str) -> str:
 
 
 def init_database():
-    # Tạo tất cả bảng — phải sau khi đã import hết models
     Base.metadata.create_all(bind=engine)
 
     session = get_session()

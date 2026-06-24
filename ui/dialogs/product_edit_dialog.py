@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont
-
+import qtawesome as qta
 
 class ProductEditDialog(QDialog):
     """Popup thêm/sửa sản phẩm đầy đủ"""
@@ -38,11 +38,17 @@ class ProductEditDialog(QDialog):
         header.setStyleSheet("background: #1565C0;")
         h = QHBoxLayout(header)
         h.setContentsMargins(16, 0, 16, 0)
-        icon = "✏️" if self.is_edit else "➕"
         title_text = "Sửa sản phẩm" if self.is_edit else "Thêm sản phẩm mới"
-        lbl = QLabel(f"{icon}  {title_text}")
+        icon_name = 'fa5s.edit' if self.is_edit else 'fa5s.plus-circle'
+
+        header_icon = QLabel()
+        header_icon.setPixmap(qta.icon(icon_name, color='white').pixmap(18, 18))
+
+        lbl = QLabel(f"  {title_text}")
         lbl.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
         lbl.setStyleSheet("color: white;")
+
+        h.addWidget(header_icon)
         h.addWidget(lbl)
         layout.addWidget(header)
 
@@ -186,7 +192,8 @@ class ProductEditDialog(QDialog):
         """)
         btn_cancel.clicked.connect(self.reject)
 
-        btn_save = QPushButton("💾  Lưu sản phẩm")
+        btn_save = QPushButton("  Lưu sản phẩm")
+        btn_save.setIcon(qta.icon('fa5s.save', color='white'))
         btn_save.setFixedHeight(38)
         btn_save.setStyleSheet("""
             QPushButton {

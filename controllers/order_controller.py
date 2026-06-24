@@ -12,7 +12,6 @@ class OrderController:
         return self._service.get_or_create_order(table_id, user_id)
 
     def add_product(self, order, product_id, size="", toppings=None):
-        # ✅ Sửa: dùng self._service thay vì self.order_service
         return self._service.add_item(
             order, product_id,
             size=size,

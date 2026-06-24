@@ -322,7 +322,6 @@ class PaymentDialog(QDialog):
         if checked:
             self.selected_method = code
             btn.setStyleSheet(self._method_style(True))
-            # ✅ Kiểm tra trước khi dùng
             if hasattr(self, 'cash_widget'):
                 self.cash_widget.setVisible(code == "CASH")
         else:
@@ -389,7 +388,6 @@ class PaymentDialog(QDialog):
             from PyQt6.QtWidgets import QMessageBox
             QMessageBox.critical(self, "Lỗi", str(e))
 
-    # Trong _on_confirm, sau khi thanh toán thành công:
     def _on_confirm(self):
         from models.payment import PaymentMethod
         from services.payment_service import PaymentService

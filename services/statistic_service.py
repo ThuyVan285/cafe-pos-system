@@ -294,7 +294,6 @@ class StatisticService:
 
         return result
     def get_revenue_by_category(self) -> list:
-        """Doanh thu theo từng danh mục — dùng cho pie chart"""
         from models.order_item import OrderItem
         from models.product import Product
         from models.category import Category

@@ -52,7 +52,7 @@ class OrderService:
     def add_item(self, order, product_id, size="", toppings=None):
         toppings = toppings or []
 
-        product = self.session.get(Product, product_id)  # ✅ dùng session.get thay .query().get() (deprecated)
+        product = self.session.get(Product, product_id)
 
         unit_price = product.base_price
 
@@ -81,7 +81,7 @@ class OrderService:
                 order_item_id=item.id,
                 topping_id=topping.id,
                 topping_name=topping.name,
-                topping_price=topping.price,  # ✅ sửa ở đây
+                topping_price=topping.price,
             )
             self.session.add(ot)
 
@@ -102,7 +102,6 @@ class OrderService:
             raise ValueError("Item not found")
         self.session.delete(item)
         self.session.commit()
-        # ✅ Nếu không còn món nào → bàn về EMPTY
         order = self.order_repo.get_by_id(item.order_id)
         if order and len(order.items) == 0:
             self.table_repo.update_status(order.table_id, TableStatus.EMPTY)

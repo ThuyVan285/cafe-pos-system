@@ -29,7 +29,6 @@ class ProductService:
         return self._repo.get_by_id(product_id)
 
     def calculate_item_price(self, product: Product, size: str) -> int:
-        """Return the unit price for a product given a size selection."""
         if not product.has_size or not size:
             return product.base_price
         for ps in product.sizes:

@@ -15,7 +15,6 @@ class OrderRepository:
             self._session.query(Order)
             .options(
                 joinedload(Order.items).joinedload(OrderItem.toppings),
-                # ✅ XÓA dòng joinedload(Order.items).joinedload(OrderItem.product)
             )
             .filter(Order.table_id == table_id, Order.status == OrderStatus.ACTIVE)
             .first()

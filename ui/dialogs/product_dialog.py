@@ -132,7 +132,7 @@ class ProductDialog(QDialog):
         layout.setContentsMargins(14, 12, 14, 12)
         layout.setSpacing(10)
 
-        lbl = QLabel("☕  Chọn size")
+        lbl = QLabel(" Chọn size")
         lbl.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
         lbl.setStyleSheet("color: #1565C0;")
         layout.addWidget(lbl)
@@ -143,7 +143,6 @@ class ProductDialog(QDialog):
         self.size_btn_group = QButtonGroup(self)
         self.size_btn_group.setExclusive(True)
 
-        # ✅ Lọc unique size tránh trùng lặp
         seen = set()
         unique_sizes = []
         for size in self.product.sizes:
@@ -219,7 +218,6 @@ class ProductDialog(QDialog):
 
         self.topping_buttons = {}
 
-        # ✅ Dùng available_toppings thay vì toppings
         toppings = self.product.available_toppings
 
         for idx, topping in enumerate(toppings):
@@ -299,7 +297,6 @@ class ProductDialog(QDialog):
         btn.setStyleSheet(self._size_style(checked))
         if checked:
             self._on_size_selected(size)
-        # Cập nhật style tất cả các nút khác về False
         for b in self.size_btn_group.buttons():
             if b is not btn:
                 b.setStyleSheet(self._size_style(False))

@@ -11,7 +11,7 @@ from PyQt6.QtWidgets import (
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont
-
+import qtawesome as qta
 
 class TransferTableDialog(QDialog):
 
@@ -170,9 +170,14 @@ class TransferTableDialog(QDialog):
             Qt.CursorShape.PointingHandCursor
         )
 
-        btn.setText(
-            f"🏠\n{table.name}"
+        btn.setIcon(
+            qta.icon(
+                "fa5s.couch",
+                color="#1565C0"
+            )
         )
+
+        btn.setText(table.name)
 
         btn.setStyleSheet(f"""
             QPushButton {{

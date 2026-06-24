@@ -20,10 +20,7 @@ class ProductRepository:
 
         self._session = session
 
-    # ==================================================
     # GET ALL PRODUCTS
-    # ==================================================
-
     def get_all(self) -> list[Product]:
 
         return (
@@ -37,11 +34,7 @@ class ProductRepository:
             .order_by(Product.name)
             .all()
         )
-
-    # ==================================================
     # GET ALL ACTIVE PRODUCTS
-    # ==================================================
-
     def get_all_active(self) -> list[Product]:
 
         return (
@@ -57,10 +50,7 @@ class ProductRepository:
             .all()
         )
 
-    # ==================================================
     # GET PRODUCT BY ID
-    # ==================================================
-
     def get_by_id(self, product_id: int) -> Optional[Product]:
 
         return (
@@ -74,9 +64,8 @@ class ProductRepository:
             .first()
         )
 
-    # ==================================================
+
     # GET PRODUCTS BY CATEGORY
-    # ==================================================
 
     def get_by_category(
         self,
@@ -96,9 +85,7 @@ class ProductRepository:
             .all()
         )
 
-    # ==================================================
     # SEARCH PRODUCT
-    # ==================================================
 
     def search(self, query: str) -> list[Product]:
 
@@ -115,10 +102,7 @@ class ProductRepository:
             .all()
         )
 
-    # ==================================================
     # GET ALL CATEGORIES
-    # ==================================================
-
     def get_all_categories(self) -> list[Category]:
 
         return (
@@ -127,9 +111,7 @@ class ProductRepository:
             .all()
         )
 
-    # ==================================================
     # GET ALL TOPPINGS
-    # ==================================================
 
     def get_all_toppings(self) -> list[Topping]:
 
@@ -138,11 +120,7 @@ class ProductRepository:
             .order_by(Topping.name)
             .all()
         )
-
-    # ==================================================
     # CREATE PRODUCT
-    # ==================================================
-
     def create(self, product: Product) -> Product:
 
         self._session.add(product)
@@ -151,20 +129,14 @@ class ProductRepository:
 
         return product
 
-    # ==================================================
     # UPDATE PRODUCT
-    # ==================================================
-
     def update(self, product: Product) -> Product:
 
         self._session.flush()
 
         return product
 
-    # ==================================================
     # DELETE PRODUCT (SOFT DELETE)
-    # ==================================================
-
     def delete(self, product_id: int) -> bool:
 
         product = self.get_by_id(product_id)

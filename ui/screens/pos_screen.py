@@ -20,13 +20,7 @@ from controllers.product_controller import ProductController
 from controllers.payment_controller import PaymentController
 from models.table import TableStatus
 
-
-# =========================================================
 # TABLE CARD
-# =========================================================
-# =========================================================
-# TABLE CARD — tự fill ô, thông tin TRONG nút xanh
-# =========================================================
 class TableCard(QWidget):
 
     def __init__(self, table, callback, order_data=None):
@@ -130,9 +124,7 @@ class TableCard(QWidget):
                 }
             """)
             self.lbl.setStyleSheet("color: #555;")
-# =========================================================
 # ORDER ITEM ROW
-# =========================================================
 class OrderItemRow(QWidget):
     def __init__(self, index, item, on_delete,
                  on_qty_change=None, on_note_change=None):
@@ -352,7 +344,8 @@ class OrderItemRow(QWidget):
         """)
         btn_cancel.clicked.connect(d.reject)
 
-        btn_save = QPushButton("💾  Lưu")
+        btn_save = QPushButton("  Lưu sản phẩm")
+        btn_save.setIcon(qta.icon('fa5s.save', color='white'))
         btn_save.setFixedHeight(38)
         btn_save.setStyleSheet("""
             QPushButton {
@@ -656,7 +649,7 @@ class PosScreen(QWidget):
         self.table_cards = {}
         self.all_tables = []
         self.filter_mode = "all"
-        self.selected_category = None  # ✅ khởi tạo ở đây
+        self.selected_category = None
         self.cat_buttons = {}
 
         # Phân trang
@@ -972,7 +965,6 @@ class PosScreen(QWidget):
             self._render_table_grid()
 
     # ── CATEGORY BAR ──────────────────────────────────────────
-    # ── CATEGORY BAR ──────────────────────────────────────────
     def _load_categories(self):
         while self.category_layout.count():
             item = self.category_layout.takeAt(0)
@@ -1168,11 +1160,9 @@ class PosScreen(QWidget):
             btn = self._make_product_card(product)
             self.product_grid.addWidget(btn, idx // COLS, idx % COLS)
 
-        # Stretch để fill full width
         for col in range(COLS):
             self.product_grid.setColumnStretch(col, 1)
 
-        # Fill ô trống hàng cuối
         total = len(products)
         remainder = total % COLS
         if remainder != 0:
@@ -1360,7 +1350,6 @@ class PosScreen(QWidget):
             self.order_panel.load_order(
                 self.current_order, self.current_table.name
             )
-            # Đánh dấu có thay đổi chưa thông báo
             self.order_panel.set_notify_state("pending")
         except Exception as e:
             from PyQt6.QtWidgets import QMessageBox
